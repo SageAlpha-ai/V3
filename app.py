@@ -75,10 +75,15 @@ app = Flask(__name__, static_folder="static", template_folder="templates")
 app.secret_key = FLASK_SECRET
 
 # ensure instance dir and configure sqlite DB
-os.makedirs(app.instance_path, exist_ok=True)
-db_path = os.path.join(app.instance_path, "sagealpha.db")
+# Use persistent directory for Azure App Service
+# ensure DB directory and configure sqlite DB (Azure persistent)
+AZURE_DB_DIR = "/home/site/wwwroot"
+os.makedirs(AZURE_DB_DIR, exist_ok=True)
+
+db_path = os.path.join(AZURE_DB_DIR, "sagealpha.db")
 app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 
 # register auth blueprint (if you have routes there)
 try:
