@@ -188,8 +188,13 @@
             <span class="text-xs bg-sage-100 dark:bg-sage-900/50 text-sage-700 dark:text-sage-300 px-2 py-0.5 rounded-full font-medium">
               v{{ APP_VERSION }}
             </span>
+            {% if LLM_MODE == 'mock' %}
+            <span class="text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full font-medium animate-pulse">
+              Demo Mode
+            </span>
+            {% endif %}
           </span>
-      </div>
+        </div>
 
         <!-- Right Controls -->
         <div class="flex items-center gap-3">
@@ -473,6 +478,10 @@
   <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
   
   <script>
+    // LLM status from server
+    const LLM_MODE = '{{ LLM_MODE | default("mock") }}';
+    const LLM_READY = {{ LLM_READY | default(true) | tojson }};
+    
     function chatApp() {
       return {
         darkMode: localStorage.getItem('theme') === 'dark',
@@ -488,6 +497,8 @@
         uploadedDocuments: [],
         currentDocument: null,
         socket: null,
+        llmMode: LLM_MODE,
+        llmReady: LLM_READY,
         
         async init() {
           // Load user

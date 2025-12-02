@@ -78,22 +78,124 @@ AZURE_SEARCH_SEMANTIC_CONFIG = os.getenv("AZURE_SEARCH_SEMANTIC_CONFIG")
 REDIS_URL = os.getenv("AZURE_REDIS_CONNECTION_STRING") or os.getenv("REDIS_URL") or "redis://localhost:6379/0"
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL") or REDIS_URL
 
-# ==================== Lazy Azure Client Initialization ====================
-_openai_client = None
+# Standard OpenAI (fallback for local dev)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# Mock mode for testing without any API key
+MOCK_LLM = os.getenv("MOCK_LLM", "false").lower() in ("1", "true", "yes")
+
+# ==================== LLM Client with Fallback ====================
+LLM_MODE = "none"  # Will be set during initialization: "azure", "openai", "mock", "none"
+_llm_client = None
 _search_client = None
 
 
-def get_openai_client():
-    """Lazily initialize Azure OpenAI client only when needed."""
-    global _openai_client
-    if _openai_client is None and AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY:
-        from openai import AzureOpenAI
-        _openai_client = AzureOpenAI(
-            azure_endpoint=AZURE_OPENAI_ENDPOINT,
-            api_key=AZURE_OPENAI_API_KEY,
-            api_version=AZURE_OPENAI_API_VERSION,
-        )
-    return _openai_client
+class MockLLMClient:
+    """Mock LLM client for local testing without API keys."""
+    
+    class MockCompletion:
+        def __init__(self, content: str):
+            self.message = type("Message", (), {"content": content})()
+    
+    class MockResponse:
+        def __init__(self, content: str):
+            self.choices = [MockLLMClient.MockCompletion(content)]
+    
+    class MockChat:
+        class Completions:
+            @staticmethod
+            def create(model: str, messages: list, **kwargs) -> "MockLLMClient.MockResponse":
+                # Extract the user's last message
+                user_msg = ""
+                for msg in reversed(messages):
+                    if msg.get("role") == "user":
+                        user_msg = msg.get("content", "")
+                        break
+                
+                # Generate a helpful mock response
+                response = f"""Hello! I'm SageAlpha running in **demo mode** (no API key configured).
+
+Based on your question about: "{user_msg[:100]}{'...' if len(user_msg) > 100 else ''}"
+
+Here's what I would analyze:
+• Market trends and financial metrics
+• Key risk factors and opportunities  
+• Valuation comparisons with peers
+• Recent news and SEC filings
+
+To enable full AI analysis:
+1. Set OPENAI_API_KEY in your .env file (get one free at openai.com/api-keys)
+2. Or set AZURE_OPENAI_API_KEY for Azure OpenAI
+3. Restart the server
+
+This is a demo response for testing the UI flow."""
+                
+                return MockLLMClient.MockResponse(response)
+        
+        completions = Completions()
+    
+    chat = MockChat()
+
+
+def init_llm_client():
+    """Initialize LLM client with fallback: Azure OpenAI → OpenAI → Mock → None."""
+    global _llm_client, LLM_MODE
+    
+    # Priority 1: Azure OpenAI (production)
+    if AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY:
+        try:
+            from openai import AzureOpenAI
+            _llm_client = AzureOpenAI(
+                azure_endpoint=AZURE_OPENAI_ENDPOINT,
+                api_key=AZURE_OPENAI_API_KEY,
+                api_version=AZURE_OPENAI_API_VERSION,
+            )
+            LLM_MODE = "azure"
+            print("[startup] ✓ LLM: Azure OpenAI initialized")
+            return _llm_client
+        except Exception as e:
+            print(f"[startup] ✗ Azure OpenAI failed: {e}")
+    
+    # Priority 2: Standard OpenAI (local dev with API key)
+    if OPENAI_API_KEY:
+        try:
+            from openai import OpenAI
+            _llm_client = OpenAI(api_key=OPENAI_API_KEY)
+            LLM_MODE = "openai"
+            print("[startup] ✓ LLM: OpenAI initialized")
+            return _llm_client
+        except Exception as e:
+            print(f"[startup] ✗ OpenAI failed: {e}")
+    
+    # Priority 3: Mock mode (for testing without any API key)
+    if MOCK_LLM or (not AZURE_OPENAI_API_KEY and not OPENAI_API_KEY):
+        _llm_client = MockLLMClient()
+        LLM_MODE = "mock"
+        print("[startup] ✓ LLM: Mock mode enabled (demo responses)")
+        return _llm_client
+    
+    # No LLM available
+    LLM_MODE = "none"
+    print("[startup] ✗ LLM: No backend configured")
+    return None
+
+
+def get_llm_client():
+    """Get the initialized LLM client."""
+    global _llm_client
+    if _llm_client is None:
+        init_llm_client()
+    return _llm_client
+
+
+def get_llm_model() -> str:
+    """Get the model name based on LLM mode."""
+    if LLM_MODE == "azure":
+        return AZURE_OPENAI_DEPLOYMENT or "gpt-4"
+    elif LLM_MODE == "openai":
+        return os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+    else:
+        return "mock-model"
 
 
 def get_search_client():
@@ -320,20 +422,8 @@ if AZURE_SEARCH_ENDPOINT and AZURE_SEARCH_KEY and AZURE_SEARCH_INDEX:
 else:
     print("[startup] Azure Search client not initialized.")
 
-# Azure OpenAI client
-client = None
-if AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY:
-    try:
-        client = AzureOpenAI(
-            azure_endpoint=AZURE_OPENAI_ENDPOINT,
-            api_key=AZURE_OPENAI_API_KEY,
-            api_version=AZURE_OPENAI_API_VERSION,
-        )
-        print("[startup] AzureOpenAI client initialized.")
-    except Exception as e:
-        print(f"[startup][WARN] Failed to initialize AzureOpenAI client: {e!r}")
-else:
-    print("[startup][WARN] Azure OpenAI configuration incomplete.")
+# Initialize LLM client with fallback chain
+client = init_llm_client()
 
 # BlobReader
 BLOB_CONTAINER = "nse-data-raw"
@@ -467,7 +557,25 @@ def home():
         hasattr(current_user, "is_authenticated") and current_user.is_authenticated
     ):
         return redirect("/login")
-    return render_template("index.html", APP_VERSION=read_version())
+    return render_template(
+        "index.html", 
+        APP_VERSION=read_version(),
+        LLM_MODE=LLM_MODE,
+        LLM_READY=LLM_MODE != "none",
+    )
+
+
+@app.route("/api/status")
+def api_status():
+    """Return API status including LLM availability."""
+    return jsonify({
+        "status": "ok",
+        "version": read_version(),
+        "llm_mode": LLM_MODE,
+        "llm_ready": LLM_MODE != "none",
+        "search_ready": search_client is not None,
+        "blob_ready": blob_reader is not None,
+    })
 
 
 @app.route("/chat", methods=["POST"])
@@ -483,7 +591,9 @@ def chat():
         ):
             return jsonify({"error": "Authentication required"}), 401
 
-    if client is None:
+    # Get LLM client (always available due to mock fallback)
+    llm = get_llm_client()
+    if llm is None:
         return jsonify({"error": "LLM backend not configured"}), 500
 
     payload = request.get_json(silent=True) or {}
@@ -531,8 +641,8 @@ def chat():
     messages = build_hybrid_messages(user_msg, retrieved, extra_system_msgs)
 
     try:
-        response = client.chat.completions.create(
-            model=AZURE_OPENAI_DEPLOYMENT,
+        response = llm.chat.completions.create(
+            model=get_llm_model(),
             messages=messages,
             max_tokens=800,
             temperature=0.0,
@@ -602,7 +712,9 @@ def chat_session():
         ):
             return jsonify({"error": "Authentication required"}), 401
 
-    if client is None:
+    # Get LLM client (always available due to mock fallback)
+    llm = get_llm_client()
+    if llm is None:
         return jsonify({"error": "LLM backend not configured"}), 500
 
     payload = request.get_json(silent=True) or {}
@@ -645,8 +757,8 @@ def chat_session():
     messages = build_hybrid_messages(user_msg, retrieved, extra_system_msgs)
 
     try:
-        resp = client.chat.completions.create(
-            model=AZURE_OPENAI_DEPLOYMENT,
+        resp = llm.chat.completions.create(
+            model=get_llm_model(),
             messages=messages,
             max_tokens=800,
             temperature=0.0,
@@ -686,7 +798,9 @@ def chat_session():
 @app.route("/query", methods=["POST"])
 def query():
     """Query endpoint for RAG search."""
-    if client is None:
+    # Get LLM client (always available due to mock fallback)
+    llm = get_llm_client()
+    if llm is None:
         return jsonify({"error": "LLM backend not configured"}), 500
 
     payload = request.get_json(silent=True) or {}
@@ -728,8 +842,8 @@ def query():
     messages = build_hybrid_messages(q, final_results)
 
     try:
-        resp = client.chat.completions.create(
-            model=AZURE_OPENAI_DEPLOYMENT,
+        resp = llm.chat.completions.create(
+            model=get_llm_model(),
             messages=messages,
             max_tokens=800,
             temperature=0.0,
@@ -1072,7 +1186,9 @@ def handle_join(data):
 @socketio.on("chat_message")
 def handle_chat_message(data):
     """Handle real-time chat messages via WebSocket."""
-    if client is None:
+    # Get LLM client (always available due to mock fallback)
+    llm = get_llm_client()
+    if llm is None:
         emit("error", {"message": "LLM backend not configured"})
         return
 
@@ -1094,8 +1210,8 @@ def handle_chat_message(data):
 
         messages = build_hybrid_messages(user_msg, retrieved)
 
-        response = client.chat.completions.create(
-            model=AZURE_OPENAI_DEPLOYMENT,
+        response = llm.chat.completions.create(
+            model=get_llm_model(),
             messages=messages,
             max_tokens=800,
             temperature=0.0,
