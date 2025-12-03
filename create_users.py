@@ -1,6 +1,6 @@
 """
 SageAlpha.ai User Creation Script
-Creates/updates demo users with proper schema migration handling
+Creates/updates demo users using psycopg2 (no SQLAlchemy)
 """
 
 import os
@@ -11,125 +11,98 @@ from werkzeug.security import generate_password_hash
 # Add the project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from db_migrate import run_migrations
-from models import User, db
-
-
-def get_db_path():
-    """Determine the database path based on environment."""
-    if os.getenv("WEBSITE_SITE_NAME"):
-        db_dir = "/home/data"
-    else:
-        db_dir = os.path.dirname(__file__)
-    return os.path.join(db_dir, "sagealpha.db")
+from db import (
+    create_tables,
+    create_user,
+    db_cursor,
+    get_user_by_username,
+    init_db,
+    seed_demo_users,
+    update_user,
+    user_exists,
+)
 
 
 def create_users():
-    """Create or update demo users."""
-    # Import app here to avoid circular imports
-    from app import app
+    """Create or update demo users using psycopg2."""
+    print("[create_users] Initializing database...")
     
-    with app.app_context():
-        # Run migrations first to ensure schema is up to date
-        db_path = get_db_path()
-        if os.path.exists(db_path):
-            print(f"[create_users] Running migrations on: {db_path}")
-            try:
-                run_migrations(db_path)
-            except Exception as e:
-                print(f"[create_users][WARN] Migration failed: {e}")
-        
-        # Ensure tables exist
-        db.create_all()
-        
-        # Demo users with all fields
-        users = [
-            {
-                "username": "demouser",
-                "display_name": "DemoUser",
-                "password": "DemoPass123!",
-                "email": "demouser@sagealpha.ai",
-            },
-            {
-                "username": "devuser",
-                "display_name": "DevUser",
-                "password": "DevPass123!",
-                "email": "devuser@sagealpha.ai",
-            },
-            {
-                "username": "produser",
-                "display_name": "ProductionUser",
-                "password": "ProdPass123!",
-                "email": "produser@sagealpha.ai",
-            },
-        ]
-        
-        created = 0
-        updated = 0
-        
-        for user_data in users:
-            username = user_data["username"]
-            existing = User.query.filter_by(username=username).first()
-            
-            if not existing:
-                # Create new user
-                u = User(
-                    username=username,
-                    display_name=user_data["display_name"],
-                    password_hash=generate_password_hash(user_data["password"]),
-                    email=user_data["email"],
-                    is_active=True,
-                )
-                db.session.add(u)
-                created += 1
-                print(f"  Created user: {username}")
-            else:
-                # Update existing user with new fields if missing
-                needs_update = False
-                
-                if not getattr(existing, "email", None):
-                    existing.email = user_data["email"]
-                    needs_update = True
-                
-                if getattr(existing, "is_active", None) is None:
-                    existing.is_active = True
-                    needs_update = True
-                
-                if needs_update:
-                    updated += 1
-                    print(f"  Updated user: {username}")
-                else:
-                    print(f"  User exists: {username}")
-        
-        db.session.commit()
-        
-        print(f"\n[create_users] Complete: {created} created, {updated} updated")
-        print("Demo accounts:")
-        print("  - demouser / DemoPass123!")
-        print("  - devuser / DevPass123!")
-        print("  - produser / ProdPass123!")
+    # Initialize database and create tables
+    init_db()
+    
+    print("\n[create_users] Demo accounts available:")
+    print("  - demouser / DemoPass123!")
+    print("  - devuser / DevPass123!")
+    print("  - produser / ProdPass123!")
 
 
 def reset_user_password(username: str, new_password: str):
     """Reset a user's password."""
-    from app import app
-    
-    with app.app_context():
-        user = User.query.filter_by(username=username).first()
-        if user:
-            user.password_hash = generate_password_hash(new_password)
-            db.session.commit()
+    user = get_user_by_username(username)
+    if user:
+        new_hash = generate_password_hash(new_password)
+        if update_user(user.id, password_hash=new_hash):
             print(f"Password reset for user: {username}")
         else:
-            print(f"User not found: {username}")
+            print(f"Failed to update password for: {username}")
+    else:
+        print(f"User not found: {username}")
+
+
+def list_users():
+    """List all users in the database."""
+    print("\n[list_users] Current users:")
+    with db_cursor(commit=False) as cur:
+        cur.execute("SELECT id, username, email, is_active, created_at FROM users ORDER BY id")
+        users = cur.fetchall()
+        if not users:
+            print("  No users found")
+        for u in users:
+            status = "active" if u["is_active"] else "inactive"
+            print(f"  {u['id']}: {u['username']} <{u['email']}> [{status}]")
+
+
+def add_user(username: str, password: str, email: str = None):
+    """Add a new user."""
+    if user_exists(username):
+        print(f"User already exists: {username}")
+        return
+    
+    user = create_user(
+        username=username,
+        password=password,
+        display_name=username,
+        email=email or f"{username}@sagealpha.ai"
+    )
+    
+    if user:
+        print(f"Created user: {username}")
+    else:
+        print(f"Failed to create user: {username}")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--reset":
-        # Usage: python create_users.py --reset username newpassword
-        if len(sys.argv) >= 4:
+    if len(sys.argv) > 1:
+        cmd = sys.argv[1]
+        
+        if cmd == "--reset" and len(sys.argv) >= 4:
+            # Usage: python create_users.py --reset username newpassword
             reset_user_password(sys.argv[2], sys.argv[3])
+        
+        elif cmd == "--list":
+            # Usage: python create_users.py --list
+            list_users()
+        
+        elif cmd == "--add" and len(sys.argv) >= 4:
+            # Usage: python create_users.py --add username password [email]
+            email = sys.argv[4] if len(sys.argv) > 4 else None
+            add_user(sys.argv[2], sys.argv[3], email)
+        
         else:
-            print("Usage: python create_users.py --reset <username> <newpassword>")
+            print("Usage:")
+            print("  python create_users.py                  # Create demo users")
+            print("  python create_users.py --list           # List all users")
+            print("  python create_users.py --reset <user> <pass>   # Reset password")
+            print("  python create_users.py --add <user> <pass> [email]  # Add user")
     else:
         create_users()

@@ -19,7 +19,7 @@ from flask import (
 from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from models import User, db
+from db import User, create_user, get_user_by_username, user_exists
 
 auth_bp = Blueprint("auth", __name__, template_folder="../templates")
 
@@ -68,7 +68,7 @@ def login():
 
     user = None
     try:
-        user = User.query.filter_by(username=username).first()
+        user = get_user_by_username(username)
     except Exception as e:
         current_app.logger.error(f"[login] DB lookup failed: {e!r}")
 
@@ -149,8 +149,7 @@ def register():
 
     if register_error is None:
         try:
-            existing = User.query.filter_by(username=username).first()
-            if existing:
+            if user_exists(username):
                 register_error = "Username already taken. Please choose another."
         except Exception as e:
             current_app.logger.error(f"[register] DB lookup failed: {e!r}")
@@ -170,13 +169,13 @@ def register():
         )
 
     try:
-        user = User(
+        user = create_user(
             username=username,
+            password=password,
             display_name=display_name or username,
-            password_hash=generate_password_hash(password),
         )
-        db.session.add(user)
-        db.session.commit()
+        if not user:
+            raise Exception("User creation returned None")
     except Exception as e:
         current_app.logger.error(f"[register] Failed to create user: {e!r}")
         return (

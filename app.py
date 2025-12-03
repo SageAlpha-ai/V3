@@ -39,9 +39,16 @@ from blueprints.chat import (
     create_session,
     extract_topic,
 )
-from db_migrate import run_migrations
+from db import (
+    User,
+    create_tables,
+    db_cursor,
+    get_db_connection,
+    get_user_by_id,
+    init_db,
+    seed_demo_users,
+)
 from extractor import extract_text_from_pdf_bytes, parse_xbrl_file_to_text
-from models import Message, User, db
 from vector_store import VectorStore
 
 # Load environment variables
@@ -56,13 +63,9 @@ IS_AZURE = IS_PRODUCTION  # Alias for clarity
 FLASK_SECRET = os.getenv("FLASK_SECRET") or os.urandom(24).hex()
 REQUIRE_AUTH = os.getenv("REQUIRE_AUTH", "true").lower() in ("1", "true", "yes")
 
-# Database - Support both SQLite (local) and PostgreSQL (production)
-# Priority: DATABASE_URL env var > local SQLite
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///instance/sagealpha.db")
-
-# Ensure instance directory exists for default SQLite path
-if "sqlite:///instance/" in DATABASE_URL:
-    os.makedirs("instance", exist_ok=True)
+# Database - PostgreSQL via psycopg2 (see db.py)
+# Set DATABASE_URL env var for Azure PostgreSQL
+# Format: postgresql://user:pass@host:port/dbname
 
 # Azure Blob Storage
 AZURE_BLOB_CONNECTION_STRING = os.getenv("AZURE_BLOB_CONNECTION_STRING") or os.getenv("AZURE_STORAGE_CONNECTION_STRING")
@@ -223,44 +226,8 @@ def create_app(config_name: str = "default") -> Flask:
     app.secret_key = FLASK_SECRET
 
     # ==================== Database Configuration ====================
-    # Use DATABASE_URL env var (defaults to local SQLite)
-    db_uri = DATABASE_URL
-    db_path = None  # Only used for SQLite migrations
-    
-    # Fix Heroku/Azure-style postgres:// -> postgresql://
-    if db_uri.startswith("postgres://"):
-        db_uri = db_uri.replace("postgres://", "postgresql://", 1)
-    
-    # Log database type
-    if "postgresql" in db_uri or "postgres" in db_uri:
-        # PostgreSQL (Azure/Production)
-        print("[DB] Connected to PostgreSQL")
-        if "@" in db_uri:
-            # Hide credentials in log
-            host_part = db_uri.split("@")[-1]
-            print(f"[DB] Host: {host_part.split('/')[0] if '/' in host_part else host_part}")
-    elif "sqlite" in db_uri:
-        # SQLite (local development)
-        db_path = db_uri.replace("sqlite:///", "")
-        # Ensure directory exists for SQLite
-        db_dir = os.path.dirname(db_path) or "."
-        if db_dir and db_dir != ".":
-            os.makedirs(db_dir, exist_ok=True)
-        print(f"[DB] Using SQLite: {db_path}")
-    else:
-        print(f"[DB] Using database: {db_uri.split('://')[0] if '://' in db_uri else 'unknown'}")
-
-    app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    
-    # Connection pool settings for production databases (PostgreSQL, MySQL, etc.)
-    if "sqlite" not in db_uri:
-        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-            "pool_pre_ping": True,
-            "pool_recycle": 300,
-            "pool_size": 10,
-            "max_overflow": 20,
-        }
+    # Using pure psycopg2 with DATABASE_URL (no Flask-SQLAlchemy)
+    # Database is initialized via init_db() after app creation
 
     # ==================== Session Configuration ====================
     app.config["SESSION_COOKIE_SECURE"] = IS_PRODUCTION
@@ -271,7 +238,7 @@ def create_app(config_name: str = "default") -> Flask:
     app.config["DEBUG"] = not IS_PRODUCTION
 
     # ==================== Initialize Extensions ====================
-    db.init_app(app)
+    # Note: No Flask-SQLAlchemy - using pure psycopg2 (see db.py)
 
     # CORS configuration
     CORS(
@@ -296,8 +263,9 @@ def create_app(config_name: str = "default") -> Flask:
 
     @login_manager.user_loader
     def load_user(user_id):
+        """Load user by ID for Flask-Login (uses psycopg2)."""
         try:
-            return db.session.get(User, int(user_id))
+            return get_user_by_id(int(user_id))
         except Exception:
             return None
 
@@ -315,20 +283,12 @@ def create_app(config_name: str = "default") -> Flask:
         }
 
     # ==================== Initialize Database ====================
-    with app.app_context():
-        # Run SQLite migrations only for SQLite databases
-        if db_path and os.path.exists(db_path):
-            try:
-                run_migrations(db_path)
-            except Exception as e:
-                print(f"[DB][WARN] Migration check failed: {e!r}")
-        
-        # Create any missing tables (safe with existing tables)
-        db.create_all()
-        print("[DB] Tables created/verified")
-        
-        # Seed demo users if table is empty
-        seed_demo_users()
+    # Initialize PostgreSQL with psycopg2 (creates tables, seeds demo users)
+    try:
+        init_db()
+    except Exception as e:
+        print(f"[DB][ERROR] Database initialization failed: {e!r}")
+        # Continue anyway - database might come up later
 
     return app
 
@@ -345,64 +305,7 @@ def read_version() -> str:
         return "3.0.0"
 
 
-def seed_demo_users():
-    """Seed demo users if they don't exist."""
-    from datetime import datetime, timezone
-    
-    print("[startup] Ensuring DB tables and demo users...")
-    try:
-        demo_users = [
-            ("demouser", "DemoUser", "DemoPass123!", "demouser@sagealpha.ai"),
-            ("devuser", "DevUser", "DevPass123!", "devuser@sagealpha.ai"),
-            ("produser", "ProductionUser", "ProdPass123!", "produser@sagealpha.ai"),
-        ]
-        created_any = False
-        updated_any = False
-        
-        for username, display, pwd, email in demo_users:
-            try:
-                existing = User.query.filter_by(username=username).first()
-            except Exception:
-                # Table might have schema issues, try raw query
-                existing = None
-            
-            if not existing:
-                u = User(
-                    username=username,
-                    display_name=display,
-                    password_hash=generate_password_hash(pwd),
-                    email=email,
-                    is_active=True,
-                )
-                db.session.add(u)
-                created_any = True
-            else:
-                # Update existing users with new fields if they're missing
-                needs_update = False
-                if not getattr(existing, "email", None):
-                    existing.email = email
-                    needs_update = True
-                if getattr(existing, "is_active", None) is None:
-                    existing.is_active = True
-                    needs_update = True
-                if needs_update:
-                    updated_any = True
-        
-        if created_any or updated_any:
-            db.session.commit()
-            if created_any:
-                print("[startup] Seeded demo users: demouser / devuser / produser")
-            if updated_any:
-                print("[startup] Updated existing demo users with new fields")
-        else:
-            print("[startup] Demo users already exist and are up to date.")
-    except Exception as e:
-        print(f"[startup][ERROR] Failed to seed demo users: {e!r}")
-        # Try to rollback any partial changes
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
+# Note: seed_demo_users() is now in db.py and called by init_db()
 
 
 # Create app instance
