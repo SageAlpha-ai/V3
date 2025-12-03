@@ -57,7 +57,12 @@ FLASK_SECRET = os.getenv("FLASK_SECRET") or os.urandom(24).hex()
 REQUIRE_AUTH = os.getenv("REQUIRE_AUTH", "true").lower() in ("1", "true", "yes")
 
 # Database - Support both SQLite (local) and PostgreSQL (production)
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Priority: DATABASE_URL env var > local SQLite
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///instance/sagealpha.db")
+
+# Ensure instance directory exists for default SQLite path
+if "sqlite:///instance/" in DATABASE_URL:
+    os.makedirs("instance", exist_ok=True)
 
 # Azure Blob Storage
 AZURE_BLOB_CONNECTION_STRING = os.getenv("AZURE_BLOB_CONNECTION_STRING") or os.getenv("AZURE_STORAGE_CONNECTION_STRING")
@@ -218,36 +223,38 @@ def create_app(config_name: str = "default") -> Flask:
     app.secret_key = FLASK_SECRET
 
     # ==================== Database Configuration ====================
-    # Priority: DATABASE_URL env var > Azure path > local SQLite
-    db_path = None  # Only used for SQLite
+    # Use DATABASE_URL env var (defaults to local SQLite)
+    db_uri = DATABASE_URL
+    db_path = None  # Only used for SQLite migrations
     
-    if DATABASE_URL:
-        # Production PostgreSQL (or other DB via DATABASE_URL)
-        db_uri = DATABASE_URL
-        # Fix Heroku-style postgres:// -> postgresql://
-        if db_uri.startswith("postgres://"):
-            db_uri = db_uri.replace("postgres://", "postgresql://", 1)
-        print(f"[startup] Using DATABASE_URL: {db_uri.split('@')[-1] if '@' in db_uri else 'configured'}")
-    elif IS_PRODUCTION:
-        # Azure App Service with SQLite fallback
-        db_dir = "/home/data"
-        os.makedirs(db_dir, exist_ok=True)
-        db_path = os.path.join(db_dir, "sagealpha.db")
-        db_uri = f"sqlite:///{db_path}"
-        print(f"[startup] Using Azure SQLite: {db_path}")
+    # Fix Heroku/Azure-style postgres:// -> postgresql://
+    if db_uri.startswith("postgres://"):
+        db_uri = db_uri.replace("postgres://", "postgresql://", 1)
+    
+    # Log database type
+    if "postgresql" in db_uri or "postgres" in db_uri:
+        # PostgreSQL (Azure/Production)
+        print("[DB] Connected to PostgreSQL")
+        if "@" in db_uri:
+            # Hide credentials in log
+            host_part = db_uri.split("@")[-1]
+            print(f"[DB] Host: {host_part.split('/')[0] if '/' in host_part else host_part}")
+    elif "sqlite" in db_uri:
+        # SQLite (local development)
+        db_path = db_uri.replace("sqlite:///", "")
+        # Ensure directory exists for SQLite
+        db_dir = os.path.dirname(db_path) or "."
+        if db_dir and db_dir != ".":
+            os.makedirs(db_dir, exist_ok=True)
+        print(f"[DB] Using SQLite: {db_path}")
     else:
-        # Local development SQLite
-        db_dir = os.path.dirname(__file__) or "."
-        os.makedirs(db_dir, exist_ok=True)
-        db_path = os.path.join(db_dir, "sagealpha.db")
-        db_uri = f"sqlite:///{db_path}"
-        print(f"[startup] Using local SQLite: {db_path}")
+        print(f"[DB] Using database: {db_uri.split('://')[0] if '://' in db_uri else 'unknown'}")
 
     app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     
-    # Connection pool settings for production
-    if IS_PRODUCTION and DATABASE_URL:
+    # Connection pool settings for production databases (PostgreSQL, MySQL, etc.)
+    if "sqlite" not in db_uri:
         app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
             "pool_pre_ping": True,
             "pool_recycle": 300,
@@ -314,10 +321,13 @@ def create_app(config_name: str = "default") -> Flask:
             try:
                 run_migrations(db_path)
             except Exception as e:
-                print(f"[startup][WARN] Migration check failed: {e!r}")
+                print(f"[DB][WARN] Migration check failed: {e!r}")
         
         # Create any missing tables (safe with existing tables)
         db.create_all()
+        print("[DB] Tables created/verified")
+        
+        # Seed demo users if table is empty
         seed_demo_users()
 
     return app
