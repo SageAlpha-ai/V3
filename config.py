@@ -47,14 +47,13 @@ class Config:
     AZURE_SEARCH_INDEX: str = os.getenv("AZURE_SEARCH_INDEX", "azureblob-index")
     AZURE_SEARCH_SEMANTIC_CONFIG: Optional[str] = os.getenv("AZURE_SEARCH_SEMANTIC_CONFIG")
     
-    # Celery / Redis
-    REDIS_URL: str = (
+    # Celery / Redis - No localhost fallback to avoid Azure errors
+    REDIS_URL: Optional[str] = (
         os.getenv("AZURE_REDIS_CONNECTION_STRING") or 
-        os.getenv("REDIS_URL") or 
-        "redis://localhost:6379/0"
+        os.getenv("REDIS_URL")
     )
-    CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL") or REDIS_URL
-    CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND") or REDIS_URL
+    CELERY_BROKER_URL: Optional[str] = os.getenv("CELERY_BROKER_URL") or REDIS_URL
+    CELERY_RESULT_BACKEND: Optional[str] = os.getenv("CELERY_RESULT_BACKEND") or REDIS_URL
 
 
 class DevelopmentConfig(Config):
@@ -99,10 +98,10 @@ class ProductionConfig(Config):
         "max_overflow": 20,
     }
     
-    # Rate limiting with Redis
+    # Rate limiting - use Redis if available, otherwise memory
     @property
     def RATELIMIT_STORAGE_URI(self) -> str:
-        return self.REDIS_URL
+        return self.REDIS_URL if self.REDIS_URL else "memory://"
 
 
 class TestingConfig(Config):
