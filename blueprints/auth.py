@@ -19,7 +19,7 @@ from flask import (
 from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from db import User, create_user, get_user_by_username, user_exists
+from db_sqlite import User, create_user, get_user_by_username, user_exists
 
 auth_bp = Blueprint("auth", __name__, template_folder="../templates")
 

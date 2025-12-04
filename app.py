@@ -39,7 +39,11 @@ from blueprints.chat import (
     create_session,
     extract_topic,
 )
-from db import (
+# Load environment variables
+load_dotenv()
+
+# ==================== Database Backend (SQLite) ====================
+from db_sqlite import (
     User,
     create_tables,
     db_cursor,
@@ -48,11 +52,10 @@ from db import (
     init_db,
     seed_demo_users,
 )
+print("[startup] DB backend: SQLite")
+
 from extractor import extract_text_from_pdf_bytes, parse_xbrl_file_to_text
 from vector_store import VectorStore
-
-# Load environment variables
-load_dotenv()
 
 # ==================== Environment Detection ====================
 IS_PRODUCTION = os.getenv("WEBSITE_SITE_NAME") is not None
