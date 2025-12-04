@@ -1,6 +1,6 @@
 """
 SageAlpha.ai User Creation Script
-Creates/updates demo users using psycopg2 (no SQLAlchemy)
+Creates/updates demo users using SQLite backend
 """
 
 import os
@@ -11,7 +11,7 @@ from werkzeug.security import generate_password_hash
 # Add the project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from db import (
+from db_sqlite import (
     create_tables,
     create_user,
     db_cursor,
@@ -24,7 +24,7 @@ from db import (
 
 
 def create_users():
-    """Create or update demo users using psycopg2."""
+    """Create or update demo users using SQLite."""
     print("[create_users] Initializing database...")
     
     # Initialize database and create tables
