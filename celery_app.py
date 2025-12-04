@@ -14,20 +14,23 @@ load_dotenv()
 IS_PRODUCTION = os.getenv("WEBSITE_SITE_NAME") is not None
 
 # ==================== Broker Configuration ====================
-# Priority: CELERY_BROKER_URL > AZURE_REDIS_CONNECTION_STRING > REDIS_URL > local
-BROKER_URL = (
+# Priority: CELERY_BROKER_URL > AZURE_REDIS_CONNECTION_STRING > REDIS_URL
+# No localhost fallback - Redis must be explicitly configured
+REDIS_URL = (
     os.getenv("CELERY_BROKER_URL") or
     os.getenv("AZURE_REDIS_CONNECTION_STRING") or
-    os.getenv("REDIS_URL") or
-    "redis://localhost:6379/0"
+    os.getenv("REDIS_URL")
 )
 
-RESULT_BACKEND = (
-    os.getenv("CELERY_RESULT_BACKEND") or
-    os.getenv("AZURE_REDIS_CONNECTION_STRING") or
-    os.getenv("REDIS_URL") or
-    "redis://localhost:6379/0"
-)
+# Use Redis if available, otherwise None (Celery will be disabled)
+BROKER_URL = REDIS_URL
+RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND") or REDIS_URL
+
+# Flag to check if Celery/Redis is available
+CELERY_AVAILABLE = REDIS_URL is not None
+
+if not CELERY_AVAILABLE:
+    print("[celery] WARNING: No Redis URL configured. Celery tasks will run synchronously.")
 
 
 def make_celery(app_name: str = "sagealpha") -> Celery:

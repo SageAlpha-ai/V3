@@ -83,8 +83,11 @@ AZURE_SEARCH_INDEX = os.getenv("AZURE_SEARCH_INDEX", "azureblob-index")
 AZURE_SEARCH_SEMANTIC_CONFIG = os.getenv("AZURE_SEARCH_SEMANTIC_CONFIG")
 
 # Redis/Celery - For background tasks
-REDIS_URL = os.getenv("AZURE_REDIS_CONNECTION_STRING") or os.getenv("REDIS_URL") or "redis://localhost:6379/0"
+# Only use Redis if explicitly configured via environment variable
+# Falls back to None (not localhost) to avoid connection errors in Azure
+REDIS_URL = os.getenv("AZURE_REDIS_CONNECTION_STRING") or os.getenv("REDIS_URL")
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL") or REDIS_URL
+REDIS_AVAILABLE = REDIS_URL is not None
 
 # Standard OpenAI (fallback for local dev)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -247,8 +250,15 @@ def create_app(config_name: str = "default") -> Flask:
         supports_credentials=True,
     )
 
-    # Rate limiting - use Redis in production, memory in dev
-    rate_limit_storage = REDIS_URL if IS_PRODUCTION else "memory://"
+    # Rate limiting - use Redis if available, otherwise memory
+    # Don't use Redis unless explicitly configured to avoid localhost errors in Azure
+    if REDIS_AVAILABLE:
+        rate_limit_storage = REDIS_URL
+        print(f"[startup] Rate limiting: Redis")
+    else:
+        rate_limit_storage = "memory://"
+        print("[startup] Rate limiting: In-memory (no Redis configured)")
+    
     limiter = Limiter(
         key_func=get_remote_address,
         app=app,
