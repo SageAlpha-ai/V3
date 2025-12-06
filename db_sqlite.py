@@ -412,9 +412,9 @@ def update_user(user_id: int, **kwargs) -> bool:
 def seed_demo_users():
     """Create demo users if they don't exist."""
     demo_users = [
-        ("demouser", "DemoUser", "DemoPass123!", "demouser@sagealpha.ai"),
-        ("devuser", "DevUser", "DevPass123!", "devuser@sagealpha.ai"),
-        ("produser", "ProductionUser", "ProdPass123!", "produser@sagealpha.ai"),
+        ("demouser", "DemoUser", "Demouser", "demouser@sagealpha.ai"),
+        ("devuser", "DevUser", "Devuser", "devuser@sagealpha.ai"),
+        ("produser", "ProductionUser", "Produser", "produser@sagealpha.ai"),
     ]
     
     created = 0
@@ -517,6 +517,6 @@ if __name__ == "__main__":
         if user_row:
             user = User(user_row)
             print(f"  Found: {user}")
-            print(f"  Password check (correct): {user.check_password('DemoPass123!')}")
+            print(f"  Password check (correct): {user.check_password('Demouser')}")
             print(f"  Password check (wrong): {user.check_password('wrongpass')}")
 

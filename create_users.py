@@ -31,9 +31,9 @@ def create_users():
     init_db()
     
     print("\n[create_users] Demo accounts available:")
-    print("  - demouser / DemoPass123!")
-    print("  - devuser / DevPass123!")
-    print("  - produser / ProdPass123!")
+    print("  - demouser / Demouser")
+    print("  - devuser / Devuser")
+    print("  - produser / Produser")
 
 
 def reset_user_password(username: str, new_password: str):
