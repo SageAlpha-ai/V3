@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -72,29 +72,91 @@
       font-family: 'Satoshi', 'Inter', system-ui, sans-serif;
     }
     
-    .glass-card {
-      background: rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
+    /* Pastel neutral login page */
+    body.login-page {
+      background-color: #F6F5FF;
     }
     
-    .gradient-bg {
-      background: linear-gradient(135deg, 
-        #1e1b4b 0%, 
-        #312e81 25%, 
-        #5b21b6 50%, 
-        #7c3aed 75%, 
-        #a855f7 100%
-      );
-      background-size: 400% 400%;
-      animation: gradient-shift 15s ease infinite;
+    .login-card {
+      background-color: #FFFFFF;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
     }
     
-    @keyframes gradient-shift {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
+    /* Text colors for light theme */
+    body.login-page .login-card {
+      color: #1f2937;
+    }
+    
+    body.login-page .login-card label {
+      color: #4b5563;
+    }
+    
+    body.login-page .login-card input {
+      background-color: #f9fafb;
+      border-color: #e5e7eb;
+      color: #1f2937;
+    }
+    
+    body.login-page .login-card input::placeholder {
+      color: #9ca3af;
+    }
+    
+    body.login-page h1 {
+      color: #1f2937;
+    }
+    
+    body.login-page h1 span {
+      color: #8B5CF6;
+    }
+    
+    body.login-page p {
+      color: #6b7280;
+    }
+    
+    /* Tab buttons for light theme */
+    body.login-page .login-card > div:first-child {
+      background-color: #f3f4f6;
+    }
+    
+    body.login-page .login-card button[type="button"]:not([type="submit"]) {
+      color: #6b7280;
+    }
+    
+    /* Hide floating orbs on light theme */
+    body.login-page .floating-orb {
+      display: none;
+    }
+    
+    /* Company logo sizing */
+    .company-logo {
+      width: 180px !important;
+      height: auto !important;
+      display: block;
+      margin: 0 auto 10px auto;
+    }
+    
+    /* Tab label visibility */
+    .login-tab-label {
+      color: #111111 !important;
+      font-weight: 600;
+    }
+    
+    /* Ensure inactive/disabled tab text is also visible */
+    .login-tab-label[disabled],
+    .login-tab-label.disabled {
+      color: #555555 !important;
+    }
+    
+    /* Enable scrolling on smaller screens */
+    html,
+    body {
+      height: auto;
+    }
+    
+    body.login-page {
+      min-height: 100vh;
+      overflow-y: auto;
     }
     
     .input-glow:focus {
@@ -152,7 +214,7 @@
   </style>
 </head>
 
-<body class="h-full gradient-bg overflow-hidden">
+<body class="login-page">
   <!-- Floating Orbs Background -->
   <div class="floating-orb orb-1"></div>
   <div class="floating-orb orb-2"></div>
@@ -169,12 +231,6 @@
     <div class="w-full max-w-md animate-slide-up">
       <!-- Logo -->
       <div class="text-center mb-8">
-        <div class="inline-flex items-center justify-center mb-4 animate-float">
-          <img src="{{ url_for('static', filename='img/sagealpha-logo.png') }}" 
-               alt="SageAlpha" 
-               class="h-12 w-auto drop-shadow-2xl"
-               onerror="this.style.display='none'">
-        </div>
         <h1 class="font-display text-3xl font-bold text-white tracking-tight">
           SageAlpha<span class="text-sage-400">.ai</span>
         </h1>
@@ -184,18 +240,18 @@
       </div>
       
       <!-- Card -->
-      <div class="glass-card rounded-3xl p-8 shadow-2xl animate-glow">
+      <div class="login-card rounded-3xl p-8">
         
         <!-- Tab Headers -->
         <div class="flex mb-8 bg-white/5 rounded-2xl p-1">
           <button @click="showRegister = false"
                   :class="!showRegister ? 'bg-white/10 text-white shadow-lg' : 'text-sage-300 hover:text-white'"
-                  class="flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300">
+                  class="flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 login-tab-label">
             Sign In
           </button>
           <button @click="showRegister = true"
                   :class="showRegister ? 'bg-white/10 text-white shadow-lg' : 'text-sage-300 hover:text-white'"
-                  class="flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300">
+                  class="flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 login-tab-label">
             Create Account
           </button>
         </div>

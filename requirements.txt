@@ -39,8 +39,6 @@ pandas==2.2.3
 
 # ==================== Web Server (Production) ====================
 gunicorn==23.0.0
-gevent==24.11.1
-gevent-websocket==0.10.1
 eventlet==0.37.0
 
 # ==================== HTTP Client ====================

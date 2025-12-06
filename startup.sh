@@ -1,6 +1,6 @@
 #!/bin/bash
 # SageAlpha.ai v3.0 - Azure App Service Startup Script
-# Async serving with gevent workers for Flask-SocketIO
+# Async serving with eventlet workers for Flask-SocketIO
 #
 # This script is called by Azure App Service on startup.
 # For more control, use startup.py instead.
@@ -36,22 +36,21 @@ python -c "from db_migrate import run_migrations; import os; \
 
 # Configuration
 PORT=${PORT:-8000}
-WORKERS=${GUNICORN_WORKERS:-2}
+WORKERS=${GUNICORN_WORKERS:-1}
 
 echo ""
 echo "[startup] Configuration:"
 echo "  PORT: $PORT"
 echo "  WORKERS: $WORKERS"
-echo "  WORKER_CLASS: geventwebsocket"
+echo "  WORKER_CLASS: eventlet"
 echo ""
 
-# Start Gunicorn with gevent workers for WebSocket support
+# Start Gunicorn with eventlet workers for WebSocket support
 echo "[startup] Starting Gunicorn server..."
 exec gunicorn \
     --bind=0.0.0.0:$PORT \
-    --worker-class=geventwebsocket.gunicorn.workers.GeventWebSocketWorker \
+    --worker-class=eventlet \
     --workers=$WORKERS \
-    --threads=4 \
     --timeout=120 \
     --keep-alive=5 \
     --max-requests=1000 \
@@ -60,5 +59,4 @@ exec gunicorn \
     --error-logfile=- \
     --log-level=info \
     --capture-output \
-    --preload \
     app:app

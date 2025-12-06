@@ -20,7 +20,7 @@ import sys
 
 def check_dependencies():
     """Verify critical dependencies are installed."""
-    required = ["flask", "gunicorn", "gevent"]
+    required = ["flask", "gunicorn", "eventlet"]
     missing = []
     
     for pkg in required:
@@ -72,9 +72,9 @@ def run_migrations():
 
 
 def start_gunicorn():
-    """Start Gunicorn with gevent workers for WebSocket support."""
+    """Start Gunicorn with eventlet workers for WebSocket support."""
     port = os.getenv("PORT", "8000")
-    workers = os.getenv("GUNICORN_WORKERS", "2")
+    workers = os.getenv("GUNICORN_WORKERS", "1")
     
     print("")
     print("=" * 60)
@@ -82,17 +82,16 @@ def start_gunicorn():
     print("=" * 60)
     print(f"  Port: {port}")
     print(f"  Workers: {workers}")
-    print(f"  Worker Class: geventwebsocket")
+    print(f"  Worker Class: eventlet")
     print("=" * 60)
     print("")
     
-    # Gunicorn command with gevent for WebSocket support
+    # Gunicorn command with eventlet for WebSocket support
     cmd = [
         "gunicorn",
         f"--bind=0.0.0.0:{port}",
-        "--worker-class=geventwebsocket.gunicorn.workers.GeventWebSocketWorker",
+        "--worker-class=eventlet",
         f"--workers={workers}",
-        "--threads=4",
         "--timeout=120",
         "--keep-alive=5",
         "--max-requests=1000",

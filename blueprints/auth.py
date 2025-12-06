@@ -85,9 +85,9 @@ def login():
 
     # Demo accounts fallback
     demo_passwords = {
-        "demouser": "DemoPass123!",
-        "devuser": "DevPass123!",
-        "produser": "ProdPass123!",
+        "demouser": "Demouser",
+        "devuser": "Devuser",
+        "produser": "Produser",
     }
     if not authenticated and username in demo_passwords:
         if password == demo_passwords[username]:
