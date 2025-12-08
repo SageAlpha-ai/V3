@@ -2,11 +2,11 @@
 SageAlpha.ai v3.0 - 2025 Flask Application
 Modern Flask 3.x with Blueprints, SocketIO, and async support
 """
-
-import io
-import os
+import json
 import re
 from datetime import datetime
+import io
+import os
 from functools import wraps
 from uuid import uuid4
 
@@ -21,7 +21,12 @@ from flask import (
     request,
     session,
     url_for,
+    send_file,
 )
+from azure.search.documents import SearchClient
+from azure.core.credentials import AzureKeyCredential
+# ... other imports ...
+
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -39,6 +44,7 @@ from blueprints.chat import (
     create_session,
     extract_topic,
 )
+from report_generator import generate_report_pdf, generate_equity_research_html
 # Load environment variables
 load_dotenv()
 
@@ -527,6 +533,45 @@ def chat():
     if not user_msg:
         return jsonify({"error": "Empty message"}), 400
 
+    # ==================== PDF INTENT DETECTION ====================
+    # Broadened keywords to capture "financial questions" as requested
+    pdf_keywords = ["pdf", "generate report", "download report", "export", "html report", "research report", "html file", "html"]
+    financial_keywords = ["research", "paper", "study", "article", "document", "analysis", "valuation", "forecast", "outlook", "financials", "thesis", "summary"]
+    
+    # Check if user wants a report (either explicitly asking for PDF/HTML or asking for deep analysis)
+    wants_pdf = any(k in user_msg.lower() for k in pdf_keywords)
+    is_research_request = wants_pdf or any(k in user_msg.lower() for k in financial_keywords)
+    
+    # Extract company name
+    # Extract company name (Robust extraction)
+    # 1. Broad regex to find all "for/about X" patterns
+    matches = re.findall(r'(?:for|on|about|concerning|pertaining|covering)\s+([a-zA-Z0-9\s&]+?)(?=[^\w]|$)', user_msg, re.I)
+    
+    # 2. Filter matches
+    blocklist = {"generating", "research", "report", "creating", "making", "download", "pdf", "html", "code", "analysis", "paper", "version", "of", "a", "an", "the"}
+    
+    company = None
+    if matches:
+        # Iterate backwards to prioritize the last mentioned entity (usually the target)
+        for m in reversed(matches):
+            candidate = m.strip().lower()
+            words = candidate.split()
+            if not words: continue
+            if candidate in blocklist: continue
+            if words[0] in blocklist: continue
+            company = m.strip()
+            break
+    
+    # If no company found via regex, try to use the whole message if it's short and looks like a company name
+    if not company and len(user_msg) < 50 and not any(k in user_msg.lower() for k in ["generate", "report", "pdf", "html"]):
+        company = user_msg.strip()
+        
+    # Default to "Unknown Company" if still not found, or handle it in generation
+    if not company:
+        company = "Target Company"
+
+    ticker = company.split()[-1].upper() if ' ' in company else company.upper()
+    
     # Session management
     if "history" not in session:
         session["history"] = [
@@ -558,7 +603,7 @@ def chat():
                 "content": f"Session memory (previous Q&A sections):\n{session_memory_text}",
             }
         )
-
+    
     top_k = int(payload.get("top_k", 5))
     retrieved = search_azure(user_msg, top_k)
     if not retrieved and search_client is None:
@@ -567,14 +612,48 @@ def chat():
     messages = build_hybrid_messages(user_msg, retrieved, extra_system_msgs)
 
     try:
-        response = llm.chat.completions.create(
-            model=get_llm_model(),
-            messages=messages,
-            max_tokens=800,
-            temperature=0.0,
-            top_p=0.95,
-        )
-        ai_msg = response.choices[0].message.content
+        pdf_data = {}
+        
+        if is_research_request:
+            # SKIP LLM call entirely for reports
+            # Construct context text for the report generator
+            relevance_threshold = 0.35
+            relevant_docs = [
+                r for r in retrieved if r.get("score", 0.0) >= relevance_threshold
+            ]
+            context_text = ""
+            if relevant_docs:
+                context_chunks = [
+                    f"Source: {r['meta'].get('source', r['doc_id'])}\n{r['text']}"
+                    for r in relevant_docs
+                    if r.get("text")
+                ]
+                context_text = "\n\n".join(context_chunks)[:10000]
+
+            # Generate dynamic equity research report using LLM for content only
+            report_html = generate_equity_research_html(llm, get_llm_model(), company, user_msg, context_text)
+            
+            # FORCE set report_title
+            report_title = f"{company.replace(' ', '_').upper()} Research Report"
+            
+            pdf_data = {"html": report_html, "title": report_title}
+            
+            # Fixed message preventing LLM hallucinations
+            ai_msg = f"Your research report for {company} is ready. Click the download button to get the PDF."
+        
+        else:
+            # Standard LLM flow
+            response = llm.chat.completions.create(
+                model=get_llm_model(),
+                messages=messages,
+                max_tokens=800,
+                temperature=0.0,
+                top_p=0.95,
+            )
+            ai_msg = response.choices[0].message.content
+            
+            if wants_pdf:
+                pdf_data = {"can_download_pdf": True}
 
         history.append({"role": "assistant", "content": ai_msg})
         sections.append(
@@ -597,6 +676,7 @@ def chat():
         ]
 
         msg_id = str(uuid4())
+        
         message_obj = {"id": msg_id, "role": "assistant", "content": ai_msg}
 
         return jsonify(
@@ -604,7 +684,7 @@ def chat():
                 "id": msg_id,
                 "response": ai_msg,
                 "message": message_obj,
-                "data": message_obj,
+                "data": pdf_data if pdf_data else message_obj,
                 "sources": sources,
             }
         )
@@ -659,6 +739,20 @@ def chat_session():
 
     s["messages"].append({"role": "user", "content": user_msg, "meta": {}})
 
+    # ==================== PDF INTENT DETECTION ====================
+    pdf_keywords = ["pdf", "generate report", "download report", "export as pdf"]
+    wants_pdf = any(k in user_msg.lower() for k in pdf_keywords)
+    
+    # Research PDF specific detection
+    research_pdf_keywords = ["research", "paper", "study", "article", "document"]
+    is_research_request = wants_pdf and any(k in user_msg.lower() for k in research_pdf_keywords)
+    
+    # Extract company name
+    # Extract company name
+    company_match = re.search(r'(?:for|on|about|concerning|pertaining|covering)\s+((?!of\b|generating\b|research\b)[A-Z][a-zA-Z\s&]+?)(?=[^\w]|$)', user_msg, re.I)
+    company = company_match.group(1).strip() if company_match else "CRH PLC"
+    ticker = company.split()[-1].upper() if ' ' in company else company.upper()
+
     last_topic = s.get("current_topic", "")
     current_topic = extract_topic(user_msg, last_topic)
     s["current_topic"] = current_topic or ""
@@ -683,14 +777,46 @@ def chat_session():
     messages = build_hybrid_messages(user_msg, retrieved, extra_system_msgs)
 
     try:
-        resp = llm.chat.completions.create(
-            model=get_llm_model(),
-            messages=messages,
-            max_tokens=800,
-            temperature=0.0,
-            top_p=0.95,
-        )
-        ai_msg = resp.choices[0].message.content
+        pdf_data = {}
+        
+        if is_research_request:
+            # SKIP LLM call entirely for reports
+            # Construct context
+            relevance_threshold = 0.35
+            relevant_docs = [
+                r for r in retrieved if r.get("score", 0.0) >= relevance_threshold
+            ]
+            context_text = ""
+            if relevant_docs:
+                context_chunks = [
+                    f"Source: {r['meta'].get('source', r['doc_id'])}\n{r['text']}"
+                    for r in relevant_docs
+                    if r.get("text")
+                ]
+                context_text = "\n\n".join(context_chunks)[:10000]
+
+            report_html = generate_equity_research_html(llm, get_llm_model(), company, user_msg, context_text)
+            
+            # FORCE set report_title
+            report_title = f"{company.replace(' ', '_').upper()} Research Report"
+            pdf_data = {"html": report_html, "title": report_title}
+            
+            # Fixed message
+            ai_msg = f"Your research report for {company} is ready. Click the download button to get the PDF."
+        
+        else:
+            # Standard LLM flow
+            resp = llm.chat.completions.create(
+                model=get_llm_model(),
+                messages=messages,
+                max_tokens=800,
+                temperature=1,
+                top_p=0.95,
+            )
+            ai_msg = resp.choices[0].message.content
+            
+            if wants_pdf:
+                pdf_data = {"can_download_pdf": True}
 
         s["messages"].append({"role": "assistant", "content": ai_msg, "meta": {}})
         s["sections"].append(
@@ -711,7 +837,7 @@ def chat_session():
         ]
 
         return jsonify(
-            {"session_id": session_id, "response": ai_msg, "sources": sources}
+            {"session_id": session_id, "response": ai_msg, "data": pdf_data, "sources": sources}
         )
     except Exception as e:
         print(f"[chat_session][ERROR] {e!r}")
@@ -803,8 +929,16 @@ def query():
 @app.route("/report-html", methods=["GET"])
 def report_html():
     """Return report HTML fragment for client-side PDF generation."""
+    company = request.args.get('company', 'CRH PLC')
+    ticker = request.args.get('ticker', 'CRH')
+    date = request.args.get('date', datetime.utcnow().strftime("%B %d, %Y"))
     try:
-        html = render_template("sagealpha_reports.html")
+        # Use LLM to generate report content
+        llm = get_llm_client()
+        if llm:
+            html = generate_equity_research_html(llm, get_llm_model(), company)
+        else:
+            html = render_template("sagealpha_reports.html", company=company, ticker=ticker, date=date)
 
         wants_fragment = False
         if request.headers.get("X-Requested-With", "").lower() == "xmlhttprequest":
@@ -1125,6 +1259,39 @@ def handle_chat_message(data):
         emit("error", {"message": "Empty message"})
         return
 
+    # ==================== PDF INTENT DETECTION ====================
+    pdf_keywords = ["pdf", "generate report", "download report", "export as pdf"]
+    wants_pdf = any(k in user_msg.lower() for k in pdf_keywords)
+    
+    # Research PDF specific detection
+    research_pdf_keywords = ["research", "paper", "study", "article", "document"]
+    is_research_request = wants_pdf and any(k in user_msg.lower() for k in research_pdf_keywords)
+    
+    # Extract company name
+    # Extract company name (Robust extraction)
+    # 1. Broad regex to find all "for/about X" patterns
+    matches = re.findall(r'(?:for|on|about|concerning|pertaining|covering)\s+([a-zA-Z0-9\s&]+?)(?=[^\w]|$)', user_msg, re.I)
+    
+    # 2. Filter matches
+    blocklist = {"generating", "research", "report", "creating", "making", "download", "pdf", "html", "code", "analysis", "paper", "version", "of", "a", "an", "the"}
+    
+    company = None
+    if matches:
+        # Iterate backwards to prioritize the last mentioned entity (usually the target)
+        for m in reversed(matches):
+            candidate = m.strip().lower()
+            words = candidate.split()
+            if not words: continue
+            if candidate in blocklist: continue
+            if words[0] in blocklist: continue
+            company = m.strip()
+            break
+            
+    if not company:
+        company = "Target Company"
+
+    ticker = company.split()[-1].upper() if ' ' in company else company.upper()
+
     # Emit typing indicator
     emit("typing", {"status": True})
 
@@ -1136,14 +1303,46 @@ def handle_chat_message(data):
 
         messages = build_hybrid_messages(user_msg, retrieved)
 
-        response = llm.chat.completions.create(
-            model=get_llm_model(),
-            messages=messages,
-            max_tokens=800,
-            temperature=0.0,
-            top_p=0.95,
-        )
-        ai_msg = response.choices[0].message.content
+        pdf_data = {}
+        
+        if is_research_request:
+            # SKIP LLM call entirely for reports
+            # Construct context
+            relevance_threshold = 0.35
+            relevant_docs = [
+                r for r in retrieved if r.get("score", 0.0) >= relevance_threshold
+            ]
+            context_text = ""
+            if relevant_docs:
+                context_chunks = []
+                for r in relevant_docs:
+                     text_content = r.get("text") or r.get("content") or ""
+                     if text_content:
+                         context_chunks.append(f"Source: {r['meta'].get('source', r['doc_id'])}\n{text_content}")
+                context_text = "\n\n".join(context_chunks)[:10000]
+
+            report_html = generate_equity_research_html(llm, get_llm_model(), company, user_msg, context_text)
+            
+            # FORCE set report_title
+            report_title = f"{company.replace(' ', '_').upper()} Research Report"
+            pdf_data = {"html": report_html, "title": report_title}
+            
+            # Fixed message
+            ai_msg = f"Your research report for {company} is ready. Click the download button to get the PDF."
+        
+        else:
+            # Standard LLM flow
+            response = llm.chat.completions.create(
+                model=get_llm_model(),
+                messages=messages,
+                max_tokens=800,
+                temperature=0.0,
+                top_p=0.95,
+            )
+            ai_msg = response.choices[0].message.content
+            
+            if wants_pdf:
+                pdf_data = {"can_download_pdf": True}
 
         sources = [
             {"doc_id": r["doc_id"], "source": r["meta"].get("source")}
@@ -1156,6 +1355,7 @@ def handle_chat_message(data):
             {
                 "id": str(uuid4()),
                 "response": ai_msg,
+                "data": pdf_data,
                 "sources": sources,
                 "session_id": session_id,
             },
@@ -1191,61 +1391,41 @@ def find_available_port(host: str = "0.0.0.0", start_port: int = 8000, max_port:
     return None
 
 
-if __name__ == "__main__":
-    host = "0.0.0.0"
+@app.route("/generate-pdf", methods=["POST"])
+def generate_pdf_endpoint():
+    """
+    Endpoint to generate a PDF from provided content.
+    Expects JSON: { "content": "...", "title": "..." }
+    """
+    data = request.get_json() or {}
+    content = data.get("content", "").strip()
+    title = data.get("title", "SageAlpha Report")
     
-    if IS_PRODUCTION:
-        # ===== PRODUCTION (Azure App Service) =====
-        port = int(os.environ.get("PORT", 8000))
-        debug = False
-        display_host = host
-        print(f"[startup] Production mode: PORT={port}, DEBUG=False")
-    else:
-        # ===== DEVELOPMENT =====
-        port = find_available_port(host)
-        debug = True
-        display_host = "127.0.0.1"
-        
-        if port is None:
-            print("")
-            print("=" * 60)
-            print("  ERROR: All ports 8000-8010 are in use!")
-            print("=" * 60)
-            print("")
-            print("  To fix this on Windows, run:")
-            print("    netstat -ano | findstr :8000")
-            print("    taskkill /PID <pid> /F")
-            print("")
-            print("  Or specify a different port:")
-            print("    set PORT=9000 && python app.py")
-            print("=" * 60)
-            exit(1)
-    
-    # Print startup banner
-    version = read_version()
-    print("")
-    print("=" * 60)
-    print(f"  SageAlpha.ai v{version}")
-    print(f"  Environment: {'Production' if IS_PRODUCTION else 'Development'}")
-    print("=" * 60)
-    print(f"  Server: http://{display_host}:{port}")
-    print(f"  Debug: {debug}")
-    print("")
-    print("  Press CTRL+C to quit")
-    print("=" * 60)
-    print("")
-    
+    if not content:
+        return jsonify({"error": "No content provided"}), 400
+
     try:
-        socketio.run(
-            app,
-            host=host,
-            port=port,
-            debug=debug,
-            use_reloader=False,
-            allow_unsafe_werkzeug=not IS_PRODUCTION,
+        pdf_buffer = generate_report_pdf(content, title=title)
+        filename_safe = re.sub(r'[^\w\-_]', '_', title) + "_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".pdf"
+        
+        return send_file(
+            pdf_buffer,
+            as_attachment=True,
+            download_name=filename_safe,
+            mimetype="application/pdf"
         )
-    except KeyboardInterrupt:
-        print("\n[shutdown] Server stopped by user")
     except Exception as e:
-        print(f"\n[ERROR] Server failed: {e}")
-        exit(1)
+        print(f"PDF Generation Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    print(f"[startup] Local dev server on http://127.0.0.1:{port}/login")
+    socketio.run(
+        app,
+        host="127.0.0.1",
+        port=port,
+        debug=True,
+        allow_unsafe_werkzeug=True
+    )
