@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>SageAlpha Capital | Equity Research | {{ company }}</title>
+    <title>SageAlpha Capital | Equity Research | Cupid Ltd</title>
     <style>
         /* Reset & Base */
         body {
@@ -17,7 +17,6 @@
             print-color-adjust: exact;
         }
 
-        /* A4 Container - Max 850px for safe printing */
         .container {
             width: 100%;
             max-width: 850px;
@@ -26,10 +25,8 @@
             background-color: #ffffff;
             box-sizing: border-box;
             border-top: 8px solid #083154;
-            /* Primary Color */
         }
 
-        /* Header */
         .header {
             width: 100%;
             border-bottom: 1px solid #eeeeee;
@@ -37,7 +34,6 @@
             margin-bottom: 30px;
         }
 
-        /* Clearfix for floated header elements */
         .header::after {
             content: "";
             display: table;
@@ -59,7 +55,6 @@
 
         .logo-area span {
             color: #2e8b57;
-            /* Accent Color */
             font-weight: 700;
         }
 
@@ -82,7 +77,6 @@
             padding-top: 5px;
         }
 
-        /* Meta Bar */
         .meta-bar {
             background-color: #083154;
             color: #ffffff;
@@ -90,7 +84,6 @@
             font-size: 13px;
             margin-bottom: 30px;
             overflow: hidden;
-            /* Clear floats if any */
         }
 
         .meta-left {
@@ -103,17 +96,14 @@
             font-weight: 600;
         }
 
-        /* Main Content Layout - Float Based for PDF Compatibility */
         .main-content {
             width: 100%;
             overflow: hidden;
-            /* Clearfix */
         }
 
         .content-col {
             float: left;
             width: 64%;
-            /* ~2/3 width */
             padding-right: 3%;
             box-sizing: border-box;
         }
@@ -121,13 +111,11 @@
         .sidebar-col {
             float: right;
             width: 33%;
-            /* ~1/3 width */
             padding-left: 15px;
             border-left: 1px solid #f0f0f0;
             box-sizing: border-box;
         }
 
-        /* Typography & Elements */
         h2 {
             color: #083154;
             border-bottom: 1px solid #eeeeee;
@@ -171,7 +159,6 @@
             text-align: justify;
         }
 
-        /* Sidebar Components */
         .rating-box {
             background-color: #f6fff6;
             border: 2px solid #008a00;
@@ -205,7 +192,6 @@
             margin-top: 2px;
         }
 
-        /* Data Table */
         .data-table {
             width: 100%;
             border-collapse: collapse;
@@ -230,7 +216,6 @@
             font-weight: 400;
         }
 
-        /* Financial Table */
         .fin-table {
             width: 100%;
             border-collapse: collapse;
@@ -258,7 +243,6 @@
             font-weight: 700;
         }
 
-        /* Analyst Info */
         .analyst-info {
             margin-top: 30px;
             border-top: 1px solid #eeeeee;
@@ -283,7 +267,6 @@
             margin: 0;
         }
 
-        /* Footer */
         .footer {
             margin-top: 40px;
             padding-top: 15px;
@@ -294,7 +277,6 @@
             clear: both;
         }
 
-        /* Print Specifics */
         @media print {
             body {
                 -webkit-print-color-adjust: exact;
@@ -319,7 +301,6 @@
 <body>
 
     <div class="container">
-        <!-- Header -->
         <div class="header">
             <div class="logo-area">
                 <h1>Sage<span>Alpha</span> Capital</h1>
@@ -327,78 +308,97 @@
             </div>
             <div class="tagline">
                 Research powered by SageAlpha.ai<br>
-                {{ date }}
+                March 2, 2025
             </div>
         </div>
 
-        <!-- Meta Bar -->
         <div class="meta-bar">
-            <div class="meta-left">Sector: {{ sector|default('Technology') }}</div>
+            <div class="meta-left">Sector: Health Care Equipment & Supplies</div>
             <div class="meta-right">Update Note</div>
         </div>
 
-        <!-- Main Content -->
         <div class="main-content">
-
-            <!-- Left Column -->
             <div class="content-col">
-                <h3>{{ company }} <span class="ticker">({{ ticker }})</span></h3>
+                <h3>Cupid Ltd <span class="ticker">(CUPID:IN)</span></h3>
                 <p style="font-style: italic; color: #555555; margin-top: 0; margin-bottom: 20px;">
-                    {{ headline_thesis|default('Investment Thesis Summary') }}
+                    Cupid Ltd stands out as a niche global player in sexual wellness with expanding export reach and
+                    strong margin discipline.
                 </p>
 
                 <h2>Investment Thesis</h2>
                 <ul>
-                    {{ thesis_points|default('<li>Investment thesis content will be generated based on company analysis.</li>')|safe }}
+                    <li>Cupid Ltd is one of the few Indian manufacturers with WHO/UNFPA prequalification for both male
+                        and female condoms, providing a defensible global niche and strong entry barriers.</li>
+                    <li>The company’s export-driven business model offers currency diversification and access to
+                        higher-margin institutional contracts with agencies like UNFPA and USAID.</li>
+                    <li>Healthy balance sheet with no significant debt and consistent dividend payouts make Cupid a
+                        compelling small-cap defensive play in the sexual wellness segment.</li>
                 </ul>
 
                 <h2>Key Highlights</h2>
                 <ul>
-                    {{ highlight_points|default('<li>Key highlights will be generated based on recent company developments.</li>')|safe }}
+                    <li>FY24 revenue growth expected at ~15% YoY, driven by higher export orders and product mix
+                        improvement toward female condoms.</li>
+                    <li>EBITDA margins remain robust at ~28%, supported by efficient manufacturing and favorable raw
+                        material procurement.</li>
+                    <li>Domestic retail expansion and diversification into lubricants and allied products provide
+                        incremental growth levers.</li>
                 </ul>
 
                 <h2>Valuation & Methodology</h2>
-                <p>{{ valuation_text|default('Valuation analysis will be provided based on company fundamentals and market conditions.') }}</p>
+                <p>Cupid Ltd currently trades at an estimated FY25E P/E of ~14x, a discount to global peers in the
+                    sexual wellness space (typically 18–20x). Given its strong export franchise, debt-free balance
+                    sheet, and improving product mix, we believe this discount is unwarranted.</p>
+                <p>Our valuation is based on a blended approach using DCF and relative P/E multiples. We assign a target
+                    multiple of 18x FY26E EPS, implying a 12-month target price of ₹490. The valuation reflects
+                    sustainable earnings growth and margin visibility amid rising institutional demand.</p>
 
                 <h2>Catalysts (Next 12 Months)</h2>
                 <ul>
-                    {{ catalyst_points|default('<li>Potential catalysts will be identified based on company outlook.</li>')|safe }}
+                    <li>New supply contracts from UNFPA and African government procurement agencies.</li>
+                    <li>Commercial rollout of new female condom variants and lubricants in domestic markets.</li>
+                    <li>Potential capacity expansion and automation at Nashik facility improving throughput and margins.
+                    </li>
                 </ul>
 
                 <h2>Risks</h2>
                 <ul>
-                    {{ risk_points|default('<li>Risks will be assessed based on industry and company-specific factors.</li>')|safe }}
+                    <li>Dependence on institutional contracts exposes revenue to tender timing and pricing volatility.
+                    </li>
+                    <li>Raw material price fluctuations (latex) could compress margins if not offset by pricing power.
+                    </li>
+                    <li>Limited brand visibility in domestic retail segment may constrain long-term growth
+                        diversification.</li>
                 </ul>
             </div>
 
-            <!-- Right Column (Sidebar) -->
             <div class="sidebar-col">
                 <div class="rating-box">
-                    <span class="rating-text">{{ rating|default('BUY') }}</span>
-                    <span class="target-price">{{ target_price|default('$100.00') }}</span>
+                    <span class="rating-text">BUY</span>
+                    <span class="target-price">₹490</span>
                     <span class="target-label">Price Target (12m)</span>
                 </div>
 
                 <table class="data-table">
                     <tr>
                         <td class="label">Current Price</td>
-                        <td class="val">{{ current_price|default('$85.00') }}</td>
+                        <td class="val">₹370</td>
                     </tr>
                     <tr>
                         <td class="label">Upside</td>
-                        <td class="val" style="color: #008a00; font-weight: 700;">{{ upside|default('+18%') }}</td>
+                        <td class="val" style="color: #008a00; font-weight: 700;">+32%</td>
                     </tr>
                     <tr>
                         <td class="label">Market Cap</td>
-                        <td class="val">{{ market_cap|default('$50.0 bn') }}</td>
+                        <td class="val">₹490 Cr</td>
                     </tr>
                     <tr>
                         <td class="label">Ent. Value</td>
-                        <td class="val">{{ ev|default('$55.0 bn') }}</td>
+                        <td class="val">₹460 Cr</td>
                     </tr>
                     <tr>
                         <td class="label">Valuation</td>
-                        <td class="val">{{ multiple_label|default('P/E') }}: {{ multiple_val|default('18.5x') }}</td>
+                        <td class="val">P/E: 14x FY25E</td>
                     </tr>
                 </table>
 
@@ -413,21 +413,21 @@
                     </tr>
                     <tr>
                         <td>Rev</td>
-                        <td>{{ rev_24|default('100.0') }}</td>
-                        <td>{{ rev_25|default('110.0') }}</td>
-                        <td>{{ rev_26|default('125.0') }}</td>
+                        <td>₹210 Cr</td>
+                        <td>₹240 Cr</td>
+                        <td>₹275 Cr</td>
                     </tr>
                     <tr>
                         <td>EBITDA</td>
-                        <td>{{ ebitda_24|default('25.0') }}</td>
-                        <td>{{ ebitda_25|default('28.0') }}</td>
-                        <td>{{ ebitda_26|default('32.0') }}</td>
+                        <td>₹58 Cr</td>
+                        <td>₹66 Cr</td>
+                        <td>₹75 Cr</td>
                     </tr>
                     <tr>
                         <td>EPS</td>
-                        <td>{{ eps_24|default('4.50') }}</td>
-                        <td>{{ eps_25|default('5.10') }}</td>
-                        <td>{{ eps_26|default('5.80') }}</td>
+                        <td>₹26.4</td>
+                        <td>₹28.5</td>
+                        <td>₹30.8</td>
                     </tr>
                 </table>
 
@@ -439,7 +439,6 @@
             </div>
         </div>
 
-        <!-- Footer -->
         <div class="footer">
             © 2025 SageAlpha Capital. All rights reserved. This report is for informational purposes only and does not
             constitute financial advice. Powered by SageAlpha.ai.

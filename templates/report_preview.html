@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ report.company_name }}{% if report.ticker %} ({{ report.ticker }}){% endif %} — Equity Research Report | SageAlpha.ai</title>
+  
+  <!-- Print-optimized styles -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap');
+    
+    :root {
+      --sage-500: #a855f7;
+      --sage-600: #9333ea;
+      --sage-700: #7c3aed;
+      --text-primary: #1f2937;
+      --text-secondary: #4b5563;
+      --text-muted: #6b7280;
+      --border-color: #e5e7eb;
+      --bg-light: #f9fafb;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: var(--text-primary);
+      background: white;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    
+    /* Page container */
+    .report-container {
+      max-width: 850px;
+      margin: 0 auto;
+      padding: 40px 50px;
+      background: white;
+      min-height: 100vh;
+    }
+    
+    /* Header Section */
+    .report-header {
+      border-bottom: 3px solid var(--sage-600);
+      padding-bottom: 24px;
+      margin-bottom: 32px;
+    }
+    
+    .report-header .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    
+    .report-header .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .report-header .logo img {
+      height: 32px;
+      width: auto;
+    }
+    
+    .report-header .logo-text {
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--sage-600);
+    }
+    
+    .report-header .report-type {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--sage-600);
+      font-weight: 600;
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(147, 51, 234, 0.1));
+      padding: 6px 14px;
+      border-radius: 4px;
+    }
+    
+    .company-info {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+    
+    .company-name {
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    
+    .ticker {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--sage-600);
+      background: rgba(168, 85, 247, 0.1);
+      padding: 4px 12px;
+      border-radius: 4px;
+    }
+    
+    .report-title {
+      font-size: 20px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    
+    .report-meta {
+      display: flex;
+      gap: 24px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    
+    .report-meta span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .status-approved {
+      background: #dcfce7;
+      color: #166534;
+    }
+    
+    .status-pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    
+    /* Section Styling */
+    .section {
+      margin-bottom: 28px;
+    }
+    
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--sage-600);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+    }
+    
+    .section-content {
+      color: var(--text-secondary);
+      text-align: justify;
+    }
+    
+    .section-content p {
+      margin-bottom: 12px;
+    }
+    
+    .section-content p:last-child {
+      margin-bottom: 0;
+    }
+    
+    /* Key Highlights */
+    .highlights-list {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .highlights-list li {
+      padding: 10px 0 10px 28px;
+      position: relative;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .highlights-list li:last-child {
+      border-bottom: none;
+    }
+    
+    .highlights-list li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      top: 10px;
+      color: var(--sage-600);
+      font-weight: 700;
+    }
+    
+    /* Financial Overview Table */
+    .financial-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    
+    .financial-table th,
+    .financial-table td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .financial-table th {
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: var(--bg-light);
+    }
+    
+    .financial-table td {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    
+    .financial-table td:last-child {
+      text-align: right;
+      font-family: 'SF Mono', 'Monaco', monospace;
+      color: var(--sage-600);
+    }
+    
+    /* Risks List */
+    .risks-list {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .risks-list li {
+      padding: 8px 0 8px 24px;
+      position: relative;
+      color: var(--text-secondary);
+    }
+    
+    .risks-list li::before {
+      content: "•";
+      position: absolute;
+      left: 8px;
+      color: #ef4444;
+      font-weight: 700;
+    }
+    
+    /* Footer */
+    .report-footer {
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 2px solid var(--border-color);
+    }
+    
+    .disclaimer {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-align: justify;
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    
+    /* Navigation bar (hidden on print) */
+    .nav-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(to right, #1e1b4b, #312e81);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    .nav-bar a {
+      color: white;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 500;
+      font-size: 14px;
+      transition: opacity 0.2s;
+    }
+    
+    .nav-bar a:hover {
+      opacity: 0.8;
+    }
+    
+    .nav-actions {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .nav-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: none;
+    }
+    
+    .nav-btn-primary {
+      background: linear-gradient(135deg, #a855f7, #9333ea);
+      color: white;
+    }
+    
+    .nav-btn-primary:hover {
+      background: linear-gradient(135deg, #9333ea, #7c3aed);
+    }
+    
+    .nav-btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .nav-btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    /* Spacer for fixed nav */
+    .nav-spacer {
+      height: 60px;
+    }
+    
+    /* Print styles */
+    @media print {
+      .nav-bar,
+      .nav-spacer {
+        display: none !important;
+      }
+      
+      .report-container {
+        padding: 20px;
+        max-width: 100%;
+      }
+      
+      body {
+        font-size: 10pt;
+      }
+      
+      .section {
+        break-inside: avoid;
+      }
+    }
+    
+    @media screen and (max-width: 768px) {
+      .report-container {
+        padding: 20px;
+      }
+      
+      .company-info {
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      .company-name {
+        font-size: 24px;
+      }
+      
+      .report-meta {
+        flex-direction: column;
+        gap: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation Bar -->
+  <nav class="nav-bar">
+    <a href="{{ url_for('portfolio.portfolio') }}">
+      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+      </svg>
+      Back to Portfolio
+    </a>
+    <div class="nav-actions">
+      <button onclick="window.print()" class="nav-btn nav-btn-secondary">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+        </svg>
+        Print / PDF
+      </button>
+    </div>
+  </nav>
+  
+  <div class="nav-spacer"></div>
+  
+  <!-- Report Content -->
+  <div class="report-container">
+    <!-- Header -->
+    <header class="report-header">
+      <div class="brand">
+        <div class="logo">
+          <img src="{{ url_for('static', filename='img/sagealpha-logo.png') }}" 
+               alt="SageAlpha" 
+               onerror="this.style.display='none'">
+          <span class="logo-text">SageAlpha.ai</span>
+        </div>
+        <span class="report-type">Equity Research</span>
+      </div>
+      
+      <div class="company-info">
+        <h1 class="company-name">{{ report.company_name }}</h1>
+        {% if report.ticker %}
+        <span class="ticker">{{ report.ticker }}</span>
+        {% endif %}
+      </div>
+      
+      <h2 class="report-title">{{ report.title }}</h2>
+      
+      <div class="report-meta">
+        <span>
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          {{ report.date }}
+        </span>
+        <span class="status-badge {% if report.status == 'approved' %}status-approved{% else %}status-pending{% endif %}">
+          {% if report.status == 'approved' %}
+          <svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+          </svg>
+          {% endif %}
+          {{ report.status | title }}
+        </span>
+      </div>
+    </header>
+    
+    <!-- Investment Thesis -->
+    <section class="section">
+      <h3 class="section-title">Investment Thesis</h3>
+      <div class="section-content">
+        {% for paragraph in report.investment_thesis.split('\n\n') %}
+        <p>{{ paragraph }}</p>
+        {% endfor %}
+      </div>
+    </section>
+    
+    <!-- Key Highlights -->
+    <section class="section">
+      <h3 class="section-title">Key Highlights</h3>
+      <ul class="highlights-list">
+        {% for highlight in report.key_highlights %}
+        <li>{{ highlight }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+    
+    <!-- Financial Overview -->
+    <section class="section">
+      <h3 class="section-title">Financial Overview</h3>
+      <table class="financial-table">
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Revenue Growth (YoY)</td>
+            <td>{{ report.financial_overview.revenue_growth }}</td>
+          </tr>
+          <tr>
+            <td>EBITDA Margin</td>
+            <td>{{ report.financial_overview.ebitda_margin }}</td>
+          </tr>
+          <tr>
+            <td>Net Debt / EBITDA</td>
+            <td>{{ report.financial_overview.net_debt_ebitda }}</td>
+          </tr>
+          <tr>
+            <td>Return on Equity (ROE)</td>
+            <td>{{ report.financial_overview.roe }}</td>
+          </tr>
+          <tr>
+            <td>Dividend Yield</td>
+            <td>{{ report.financial_overview.dividend_yield }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+    
+    <!-- Valuation Summary -->
+    <section class="section">
+      <h3 class="section-title">Valuation Summary</h3>
+      <div class="section-content">
+        {% for paragraph in report.valuation_summary.split('\n\n') %}
+        <p>{{ paragraph }}</p>
+        {% endfor %}
+      </div>
+    </section>
+    
+    <!-- Key Risks -->
+    <section class="section">
+      <h3 class="section-title">Key Risks</h3>
+      <ul class="risks-list">
+        {% for risk in report.risks %}
+        <li>{{ risk }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+    
+    <!-- Recommendation -->
+    <section class="section">
+      <h3 class="section-title">Recommendation</h3>
+      <div class="section-content">
+        <p>{{ report.recommendation }}</p>
+      </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer class="report-footer">
+      <p class="disclaimer">
+        <strong>Disclaimer:</strong> This report is for informational purposes only and does not constitute investment advice, 
+        an offer to sell, or a solicitation of an offer to buy any securities. The information contained herein is believed 
+        to be reliable but is not guaranteed as to accuracy or completeness. Past performance is not indicative of future results. 
+        Investing involves risks, including the possible loss of principal. Always conduct your own research and consult with 
+        a qualified financial advisor before making investment decisions.
+      </p>
+      <div class="footer-brand">
+        <span>© 2025 SageAlpha.ai — All rights reserved</span>
+        <span>Report ID: {{ report_id }} | Version {{ APP_VERSION }}</span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
+

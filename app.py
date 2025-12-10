@@ -32,12 +32,22 @@ from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 
 from blob_utils import BlobReader
-from blueprints import auth_bp, chat_bp, pdf_bp
+from blueprints import auth_bp, chat_bp, pdf_bp, portfolio_bp
+from blueprints.auth import init_oauth
 from blueprints.chat import (
     SESSIONS,
     build_session_memory_sections,
     create_session,
+    create_db_session,
     extract_topic,
+    get_db_session,
+    get_current_user_id,
+    save_message,
+    update_session_title,
+)
+from blueprints.portfolio import (
+    extract_company_from_message,
+    auto_add_company_to_portfolio,
 )
 # Load environment variables
 load_dotenv()
@@ -56,6 +66,7 @@ print("[startup] DB backend: SQLite")
 
 from extractor import extract_text_from_pdf_bytes, parse_xbrl_file_to_text
 from vector_store import VectorStore
+from report_generator import generate_report_pdf, generate_equity_research_html
 
 # ==================== Environment Detection ====================
 IS_PRODUCTION = os.getenv("WEBSITE_SITE_NAME") is not None
@@ -239,7 +250,12 @@ def create_app(config_name: str = "default") -> Flask:
     app.config["SESSION_COOKIE_SECURE"] = IS_PRODUCTION
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-    
+
+    # URL generation configuration
+    if not IS_PRODUCTION:
+        app.config["SERVER_NAME"] = "127.0.0.1:8000"
+        app.config["PREFERRED_URL_SCHEME"] = "http"
+
     # Debug mode
     app.config["DEBUG"] = not IS_PRODUCTION
 
@@ -286,6 +302,10 @@ def create_app(config_name: str = "default") -> Flask:
     app.register_blueprint(auth_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(pdf_bp)
+    app.register_blueprint(portfolio_bp)
+
+    # Initialize OAuth providers
+    init_oauth(app)
 
     # Context processor for version and environment
     @app.context_processor
@@ -327,10 +347,8 @@ app = create_app()
 # Initialize SocketIO for real-time chat
 socketio = SocketIO(
     app,
-    cors_allowed_origins="*",
-    async_mode="eventlet",
-    ping_timeout=60,
-    ping_interval=25,
+    async_mode="threading",
+    cors_allowed_origins="*"
 )
 
 # Initialize Azure services
@@ -506,7 +524,7 @@ def api_status():
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    """Chat endpoint for AI conversation."""
+    """Chat endpoint for AI conversation with database persistence."""
     if REQUIRE_AUTH:
         if not (
             (
@@ -524,10 +542,38 @@ def chat():
 
     payload = request.get_json(silent=True) or {}
     user_msg = (payload.get("message") or "").strip()
+    chat_session_id = payload.get("session_id")  # Optional session ID
+    
     if not user_msg:
         return jsonify({"error": "Empty message"}), 400
 
-    # Session management
+    # Get current user ID for database operations
+    user_id = get_current_user_id()
+    
+    # =====================================================
+    # DATABASE-BACKED MESSAGE PERSISTENCE
+    # =====================================================
+    if user_id:
+        # Check if we have a session_id, if not create one
+        if not chat_session_id:
+            db_session = None
+        else:
+            db_session = get_db_session(chat_session_id, user_id)
+        
+        if not db_session:
+            # Create new session in database
+            chat_session_id = create_db_session(user_id, "New Chat")
+        
+        # Save user message to database
+        if chat_session_id:
+            save_message(chat_session_id, user_id, "user", user_msg)
+            
+            # Update session title if this is the first message
+            if db_session and (not db_session.get("title") or db_session.get("title") == "New Chat"):
+                new_title = user_msg[:60] + ("..." if len(user_msg) > 60 else "")
+                update_session_title(chat_session_id, user_id, new_title)
+
+    # Session management (Flask session for backward compatibility)
     if "history" not in session:
         session["history"] = [
             {
@@ -587,6 +633,26 @@ def chat():
         session["history"] = history
         session["sections"] = sections
 
+        # =====================================================
+        # SAVE ASSISTANT MESSAGE TO DATABASE
+        # =====================================================
+        if user_id and chat_session_id:
+            save_message(chat_session_id, user_id, "assistant", ai_msg)
+
+        # =====================================================
+        # AUTO-ADD COMPANY TO PORTFOLIO
+        # Detect if user is researching a company and auto-add it
+        # =====================================================
+        if hasattr(current_user, "is_authenticated") and current_user.is_authenticated:
+            company_info = extract_company_from_message(user_msg)
+            if company_info:
+                company_name, ticker = company_info
+                portfolio_item_id = auto_add_company_to_portfolio(
+                    current_user.id, company_name, ticker
+                )
+                if portfolio_item_id:
+                    print(f"[chat] Auto-added company to portfolio: {company_name} ({ticker})")
+
         sources = [
             {
                 "doc_id": r["doc_id"],
@@ -606,6 +672,7 @@ def chat():
                 "message": message_obj,
                 "data": message_obj,
                 "sources": sources,
+                "session_id": chat_session_id,  # Return session ID for client
             }
         )
 
@@ -631,7 +698,7 @@ def chat():
 
 @app.route("/chat_session", methods=["POST"])
 def chat_session():
-    """Chat endpoint with session management."""
+    """Chat endpoint with session management and database persistence."""
     if REQUIRE_AUTH:
         if not (
             hasattr(current_user, "is_authenticated") and current_user.is_authenticated
@@ -649,13 +716,40 @@ def chat_session():
     if not user_msg:
         return jsonify({"error": "Empty message"}), 400
 
+    # Get current user ID for database operations
+    user_id = get_current_user_id()
+    
+    # =====================================================
+    # DATABASE-BACKED SESSION MANAGEMENT
+    # =====================================================
+    if user_id:
+        # Check if session exists in database
+        db_session = get_db_session(session_id, user_id) if session_id else None
+        
+        if not db_session:
+            # Create new session in database
+            session_id = create_db_session(user_id, "New Chat")
+            if not session_id:
+                return jsonify({"error": "Failed to create session"}), 500
+        
+        # Save user message to database
+        save_message(session_id, user_id, "user", user_msg)
+        
+        # Update session title if this is the first message
+        if db_session and (not db_session.get("title") or db_session.get("title") == "New Chat"):
+            # Use first 60 chars of user message as title
+            new_title = user_msg[:60] + ("..." if len(user_msg) > 60 else "")
+            update_session_title(session_id, user_id, new_title)
+    
+    # Keep in-memory session for backward compatibility
     if session_id and session_id in SESSIONS:
         s = SESSIONS[session_id]
         if s.get("owner") != getattr(current_user, "username", None):
             return jsonify({"error": "Session not found"}), 404
     else:
         s = create_session("New chat", owner=getattr(current_user, "username", None))
-        session_id = s["id"]
+        if not session_id:
+            session_id = s["id"]
 
     s["messages"].append({"role": "user", "content": user_msg, "meta": {}})
 
@@ -680,7 +774,75 @@ def chat_session():
     if not retrieved and search_client is None:
         retrieved = vs.search(user_msg, k=top_k)
 
-    messages = build_hybrid_messages(user_msg, retrieved, extra_system_msgs)
+    # ==================== PDF INTENT DETECTION ====================
+    # Broadened keywords to capture "financial questions" as requested
+    pdf_keywords = ["pdf", "generate report", "download report", "export", "html report", "research report", "html file", "html"]
+    financial_keywords = ["research", "paper", "study", "article", "document", "analysis", "valuation", "forecast", "outlook", "financials", "thesis", "summary"]
+
+    # Check if user wants a report (either explicitly asking for PDF/HTML or asking for deep analysis)
+    wants_pdf = any(k in user_msg.lower() for k in pdf_keywords)
+    is_research_request = wants_pdf or any(k in user_msg.lower() for k in financial_keywords)
+
+    # Extract company name
+    # Extract company name (Robust extraction)
+    # 1. Broad regex to find all "for/about X" patterns
+    matches = re.findall(r'(?:for|on|about|concerning|pertaining|covering)\s+([a-zA-Z0-9\s&]+?)(?=[^\w]|$)', user_msg, re.I)
+
+    # 2. Filter matches
+    blocklist = {"generating", "research", "report", "creating", "making", "download", "pdf", "html", "code", "analysis", "paper", "version", "of", "a", "an", "the"}
+
+    company = None
+    if matches:
+        # Iterate backwards to prioritize the last mentioned entity (usually the target)
+        for m in reversed(matches):
+            candidate = m.strip().lower()
+            words = candidate.split()
+            if not words: continue
+            if candidate in blocklist: continue
+            if words[0] in blocklist: continue
+            company = m.strip()
+            break
+
+    # If no company found via regex, try to use the whole message if it's short and looks like a company name
+    if not company and len(user_msg) < 50 and not any(k in user_msg.lower() for k in ["generate", "report", "pdf", "html"]):
+        company = user_msg.strip()
+
+    # Default to "Unknown Company" if still not found, or handle it in generation
+    if not company:
+        company = "Target Company"
+
+    ticker = company.split()[-1].upper() if ' ' in company else company.upper()
+
+    pdf_data = {}
+
+    if is_research_request:
+        # SKIP LLM call entirely for reports
+        # Construct context text for the report generator
+        relevance_threshold = 0.35
+        relevant_docs = [
+            r for r in retrieved if r.get("score", 0.0) >= relevance_threshold
+        ]
+        context_text = ""
+        if relevant_docs:
+            context_chunks = [
+                f"Source: {r['meta'].get('source', r['doc_id'])}\n{r['text']}"
+                for r in relevant_docs
+                if r.get("text")
+            ]
+            context_text = "\n\n".join(context_chunks)[:10000]
+
+        # Generate dynamic equity research report using LLM for content only
+        report_html = generate_equity_research_html(llm, get_llm_model(), company, user_msg, context_text)
+
+        # FORCE set report_title
+        report_title = f"{company.replace(' ', '_').upper()} Research Report"
+
+        pdf_data = {"html": report_html, "title": report_title}
+
+        # Fixed message preventing LLM hallucinations
+        ai_msg = f"Your research report for {company} is ready. Click the download button to get the PDF."
+    else:
+        messages = build_hybrid_messages(user_msg, retrieved, extra_system_msgs)
 
     try:
         resp = llm.chat.completions.create(
@@ -691,34 +853,56 @@ def chat_session():
             top_p=0.95,
         )
         ai_msg = resp.choices[0].message.content
-
-        s["messages"].append({"role": "assistant", "content": ai_msg, "meta": {}})
-        s["sections"].append(
-            {
-                "timestamp": datetime.utcnow().isoformat(),
-                "query": user_msg,
-                "answer": ai_msg,
-            }
-        )
-
-        sources = [
-            {
-                "doc_id": r["doc_id"],
-                "source": r["meta"].get("source"),
-                "score": float(r["score"]),
-            }
-            for r in retrieved
-        ]
-
-        return jsonify(
-            {"session_id": session_id, "response": ai_msg, "sources": sources}
-        )
     except Exception as e:
-        print(f"[chat_session][ERROR] {e!r}")
-        s["messages"].append(
-            {"role": "assistant", "content": f"Backend error: {e}", "meta": {}}
-        )
-        return jsonify({"error": str(e)}), 500
+        ai_msg = f"Backend error: {e!s}"
+
+    # Common code for both research requests and regular chat
+    s["messages"].append({"role": "assistant", "content": ai_msg, "meta": {}})
+    s["sections"].append(
+        {
+            "timestamp": datetime.utcnow().isoformat(),
+            "query": user_msg,
+            "answer": ai_msg,
+        }
+    )
+
+    # =====================================================
+    # SAVE ASSISTANT MESSAGE TO DATABASE
+    # =====================================================
+    if user_id and session_id:
+        save_message(session_id, user_id, "assistant", ai_msg)
+
+    # =====================================================
+    # AUTO-ADD COMPANY TO PORTFOLIO
+    # Detect if user is researching a company and auto-add it
+    # =====================================================
+    if hasattr(current_user, "is_authenticated") and current_user.is_authenticated:
+        company_info = extract_company_from_message(user_msg)
+        if company_info:
+            company_name, ticker = company_info
+            portfolio_item_id = auto_add_company_to_portfolio(
+                current_user.id, company_name, ticker
+            )
+            if portfolio_item_id:
+                print(f"[chat_session] Auto-added company to portfolio: {company_name} ({ticker})")
+
+    sources = [
+        {
+            "doc_id": r["doc_id"],
+            "source": r["meta"].get("source"),
+            "score": float(r["score"]),
+        }
+        for r in retrieved
+    ]
+
+    return jsonify(
+        {
+            "session_id": session_id,
+            "response": ai_msg,
+            "sources": sources,
+            "pdf_data": pdf_data,
+        }
+    )
 
 
 @app.route("/query", methods=["POST"])
@@ -1106,12 +1290,12 @@ def handle_join(data):
     room = data.get("room")
     if room:
         join_room(room)
-        emit("joined", {"room": room}, room=room)
+    emit("joined", {"room": room}, room=room)
 
 
 @socketio.on("chat_message")
 def handle_chat_message(data):
-    """Handle real-time chat messages via WebSocket."""
+    """Handle real-time chat messages via WebSocket with database persistence."""
     # Get LLM client (always available due to mock fallback)
     llm = get_llm_client()
     if llm is None:
@@ -1124,6 +1308,29 @@ def handle_chat_message(data):
     if not user_msg:
         emit("error", {"message": "Empty message"})
         return
+
+    # Get current user ID for database operations
+    user_id = get_current_user_id()
+
+    # =====================================================
+    # DATABASE-BACKED SESSION MANAGEMENT (WebSocket)
+    # =====================================================
+    if user_id:
+        # Check if session exists in database
+        db_session = get_db_session(session_id, user_id) if session_id else None
+        
+        if not db_session:
+            # Create new session in database
+            session_id = create_db_session(user_id, "New Chat")
+        
+        # Save user message to database
+        if session_id:
+            save_message(session_id, user_id, "user", user_msg)
+            
+            # Update session title if this is the first message
+            if db_session and (not db_session.get("title") or db_session.get("title") == "New Chat"):
+                new_title = user_msg[:60] + ("..." if len(user_msg) > 60 else "")
+                update_session_title(session_id, user_id, new_title)
 
     # Emit typing indicator
     emit("typing", {"status": True})
@@ -1145,26 +1352,50 @@ def handle_chat_message(data):
         )
         ai_msg = response.choices[0].message.content
 
+        # =====================================================
+        # SAVE ASSISTANT MESSAGE TO DATABASE (WebSocket)
+        # =====================================================
+        if user_id and session_id:
+            save_message(session_id, user_id, "assistant", ai_msg)
+
+        # =====================================================
+        # AUTO-ADD COMPANY TO PORTFOLIO (WebSocket handler)
+        # Detect if user is researching a company and auto-add it
+        # =====================================================
+        if hasattr(current_user, "is_authenticated") and current_user.is_authenticated:
+            company_info = extract_company_from_message(user_msg)
+            if company_info:
+                company_name, ticker = company_info
+                portfolio_item_id = auto_add_company_to_portfolio(
+                    current_user.id, company_name, ticker
+                )
+                if portfolio_item_id:
+                    print(f"[ws] Auto-added company to portfolio: {company_name} ({ticker})")
+
         sources = [
             {"doc_id": r["doc_id"], "source": r["meta"].get("source")}
             for r in retrieved
         ]
 
-        emit("typing", {"status": False})
-        emit(
-            "chat_response",
-            {
-                "id": str(uuid4()),
-                "response": ai_msg,
-                "sources": sources,
-                "session_id": session_id,
-            },
-        )
-
     except Exception as e:
         emit("typing", {"status": False})
         emit("error", {"message": f"Backend error: {e!s}"})
         print(f"[ws][ERROR] {e!r}")
+        return
+
+    emit("typing", {"status": False})
+    emit(
+        "chat_response",
+        {
+            "id": str(uuid4()),
+            "response": ai_msg,
+            "sources": sources,
+            "session_id": session_id,
+            "pdf_data": pdf_data,
+        },
+    )
+
+    # TODO: Add proper exception handling
 
 
 # ==================== Entry Point ====================
@@ -1191,61 +1422,209 @@ def find_available_port(host: str = "0.0.0.0", start_port: int = 8000, max_port:
     return None
 
 
-if __name__ == "__main__":
-    host = "0.0.0.0"
+@app.route("/generate-pdf", methods=["POST"])
+def generate_pdf_endpoint():
+    """
+    Endpoint to generate a PDF from provided content.
+    Expects JSON: { "content": "...", "title": "..." }
+    """
+    data = request.get_json() or {}
+    content = data.get("content", "").strip()
+    title = data.get("title", "SageAlpha Report")
+
+    if not content:
+        return jsonify({"error": "No content provided"}), 400
+
+    try:
+        pdf_buffer = generate_report_pdf(content, title=title)
+        filename_safe = re.sub(r'[^\w\-_]', '_', title) + "_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".pdf"
+
+        return send_file(
+            pdf_buffer,
+            as_attachment=True,
+            download_name=filename_safe,
+            mimetype="application/pdf"
+        )
+    except Exception as e:
+        print(f"PDF Generation Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ==================== CHAT-ONLY REPORT GENERATION ====================
+# This route generates reports from chat WITHOUT touching the portfolio
+
+REPORTS_DIR = os.path.join(os.path.dirname(__file__), "generated_reports")
+os.makedirs(REPORTS_DIR, exist_ok=True)
+
+
+@app.route("/chat/create-report", methods=["POST"])
+def chat_create_report():
+    """
+    Generate a quick equity research report for a company.
+    This does NOT add the company to the portfolio.
     
-    if IS_PRODUCTION:
-        # ===== PRODUCTION (Azure App Service) =====
-        port = int(os.environ.get("PORT", 8000))
-        debug = False
-        display_host = host
-        print(f"[startup] Production mode: PORT={port}, DEBUG=False")
-    else:
-        # ===== DEVELOPMENT =====
-        port = find_available_port(host)
-        debug = True
-        display_host = "127.0.0.1"
-        
-        if port is None:
-            print("")
-            print("=" * 60)
-            print("  ERROR: All ports 8000-8010 are in use!")
-            print("=" * 60)
-            print("")
-            print("  To fix this on Windows, run:")
-            print("    netstat -ano | findstr :8000")
-            print("    taskkill /PID <pid> /F")
-            print("")
-            print("  Or specify a different port:")
-            print("    set PORT=9000 && python app.py")
-            print("=" * 60)
-            exit(1)
+    Expects JSON: { "company_name": "...", "ticker": "..." (optional) }
+    Returns: { "success": true, "message": "...", "download_url": "...", "report_id": "..." }
+    """
+    data = request.get_json() or {}
+    company_name = (data.get("company_name") or "").strip()
+    ticker = (data.get("ticker") or "").strip()
     
-    # Print startup banner
-    version = read_version()
-    print("")
-    print("=" * 60)
-    print(f"  SageAlpha.ai v{version}")
-    print(f"  Environment: {'Production' if IS_PRODUCTION else 'Development'}")
-    print("=" * 60)
-    print(f"  Server: http://{display_host}:{port}")
-    print(f"  Debug: {debug}")
-    print("")
-    print("  Press CTRL+C to quit")
-    print("=" * 60)
-    print("")
+    if not company_name:
+        return jsonify({"error": "Company name is required"}), 400
+    
+    # Get LLM client
+    llm = get_llm_client()
+    if llm is None:
+        return jsonify({"error": "LLM backend not available"}), 500
     
     try:
-        socketio.run(
-            app,
-            host=host,
-            port=port,
-            debug=debug,
-            use_reloader=False,
-            allow_unsafe_werkzeug=not IS_PRODUCTION,
+        print(f"[chat/create-report] Generating report for: {company_name}")
+        
+        # Generate report HTML using existing LLM function
+        user_message = f"Generate an equity research report for {company_name}"
+        
+        # Try to get some context from vector store
+        context_text = ""
+        try:
+            if vs:
+                retrieved = vs.search(company_name, top_k=3)
+                context_chunks = [
+                    r.get("text", "")
+                    for r in retrieved
+                    if r.get("text")
+                ]
+                context_text = "\n\n".join(context_chunks)[:5000]
+        except Exception as e:
+            print(f"[chat/create-report] Context retrieval warning: {e}")
+        
+        # Generate the report HTML
+        report_html = generate_equity_research_html(
+            llm, 
+            get_llm_model(), 
+            company_name, 
+            user_message, 
+            context_text
         )
-    except KeyboardInterrupt:
-        print("\n[shutdown] Server stopped by user")
+        
+        # Generate unique report ID and filename
+        report_id = f"{company_name.replace(' ', '_').lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        html_filename = f"{report_id}.html"
+        html_filepath = os.path.join(REPORTS_DIR, html_filename)
+        
+        # Save the HTML report
+        with open(html_filepath, "w", encoding="utf-8") as f:
+            f.write(report_html)
+        
+        print(f"[chat/create-report] Report saved: {html_filepath}")
+        
+        # Build download URL
+        download_url = f"/reports/download/{report_id}"
+        
+        # Build chat message
+        message = f"✅ Your research report for **{company_name}** is ready!\n\n📄 [Download Report as PDF]({download_url})"
+        
+        return jsonify({
+            "success": True,
+            "message": message,
+            "download_url": download_url,
+            "report_id": report_id,
+            "company_name": company_name
+        })
+        
     except Exception as e:
-        print(f"\n[ERROR] Server failed: {e}")
-        exit(1)
+        print(f"[chat/create-report] Error: {e}")
+        return jsonify({"error": f"Failed to generate report: {str(e)}"}), 500
+
+
+@app.route("/reports/download/<report_id>")
+def download_report(report_id):
+    """
+    Download a generated report as PDF.
+    The report_id corresponds to the HTML file saved in generated_reports folder.
+    """
+    # Sanitize report_id to prevent path traversal
+    safe_report_id = re.sub(r'[^\w\-_]', '_', report_id)
+    html_filename = f"{safe_report_id}.html"
+    html_filepath = os.path.join(REPORTS_DIR, html_filename)
+    
+    if not os.path.exists(html_filepath):
+        return jsonify({"error": "Report not found"}), 404
+    
+    try:
+        # Read the HTML content
+        with open(html_filepath, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        
+        # Check if user wants HTML or PDF
+        # Default to HTML download for simplicity (PDF conversion requires additional libs)
+        wants_pdf = request.args.get("format", "html").lower() == "pdf"
+        
+        if wants_pdf:
+            # Try to generate PDF using ReportLab (simple text extraction)
+            # For better PDF, the frontend can use html2pdf.js
+            try:
+                # Extract text from HTML for simple PDF
+                import re as regex
+                text_content = regex.sub(r'<[^>]+>', '', html_content)
+                text_content = regex.sub(r'\s+', ' ', text_content).strip()
+                
+                # Extract company name from report_id
+                company_for_title = report_id.replace('_', ' ').title().split()[0] if report_id else "Company"
+                
+                pdf_buffer = generate_report_pdf(text_content[:8000], title=f"SageAlpha Research - {company_for_title}")
+                
+                return send_file(
+                    pdf_buffer,
+                    as_attachment=True,
+                    download_name=f"SageAlpha_{safe_report_id}.pdf",
+                    mimetype="application/pdf"
+                )
+            except Exception as pdf_err:
+                print(f"[reports/download] PDF generation fallback to HTML: {pdf_err}")
+                # Fall through to HTML
+        
+        # Return HTML (client can use html2pdf.js for better PDF)
+        response = make_response(html_content)
+        response.headers["Content-Type"] = "text/html; charset=utf-8"
+        response.headers["Content-Disposition"] = f'attachment; filename="SageAlpha_{safe_report_id}.html"'
+        return response
+        
+    except Exception as e:
+        print(f"[reports/download] Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/reports/view/<report_id>")
+def view_report(report_id):
+    """
+    View a generated report in the browser (HTML).
+    """
+    safe_report_id = re.sub(r'[^\w\-_]', '_', report_id)
+    html_filename = f"{safe_report_id}.html"
+    html_filepath = os.path.join(REPORTS_DIR, html_filename)
+    
+    if not os.path.exists(html_filepath):
+        return jsonify({"error": "Report not found"}), 404
+    
+    try:
+        with open(html_filepath, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        
+        return html_content, 200, {"Content-Type": "text/html; charset=utf-8"}
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    print(f"[startup] Local dev server on http://127.0.0.1:{port}/login")
+    socketio.run(
+        app,
+        host="127.0.0.1",
+        port=port,
+        debug=True,
+        allow_unsafe_werkzeug=True
+    )

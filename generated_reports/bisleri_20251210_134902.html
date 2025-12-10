@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
-    <title>SageAlpha Capital | Equity Research | {{ company }}</title>
+    <title>SageAlpha Capital | Equity Research | Bisleri</title>
     <style>
         /* Reset & Base */
         body {
@@ -17,7 +16,6 @@
             print-color-adjust: exact;
         }
 
-        /* A4 Container - Max 850px for safe printing */
         .container {
             width: 100%;
             max-width: 850px;
@@ -26,18 +24,14 @@
             background-color: #ffffff;
             box-sizing: border-box;
             border-top: 8px solid #083154;
-            /* Primary Color */
         }
 
-        /* Header */
         .header {
             width: 100%;
             border-bottom: 1px solid #eeeeee;
             padding-bottom: 20px;
             margin-bottom: 30px;
         }
-
-        /* Clearfix for floated header elements */
         .header::after {
             content: "";
             display: table;
@@ -59,7 +53,6 @@
 
         .logo-area span {
             color: #2e8b57;
-            /* Accent Color */
             font-weight: 700;
         }
 
@@ -82,7 +75,6 @@
             padding-top: 5px;
         }
 
-        /* Meta Bar */
         .meta-bar {
             background-color: #083154;
             color: #ffffff;
@@ -90,30 +82,24 @@
             font-size: 13px;
             margin-bottom: 30px;
             overflow: hidden;
-            /* Clear floats if any */
         }
-
         .meta-left {
             float: left;
             font-weight: 600;
         }
-
         .meta-right {
             float: right;
             font-weight: 600;
         }
 
-        /* Main Content Layout - Float Based for PDF Compatibility */
         .main-content {
             width: 100%;
             overflow: hidden;
-            /* Clearfix */
         }
 
         .content-col {
             float: left;
             width: 64%;
-            /* ~2/3 width */
             padding-right: 3%;
             box-sizing: border-box;
         }
@@ -121,13 +107,11 @@
         .sidebar-col {
             float: right;
             width: 33%;
-            /* ~1/3 width */
             padding-left: 15px;
             border-left: 1px solid #f0f0f0;
             box-sizing: border-box;
         }
 
-        /* Typography & Elements */
         h2 {
             color: #083154;
             border-bottom: 1px solid #eeeeee;
@@ -171,7 +155,6 @@
             text-align: justify;
         }
 
-        /* Sidebar Components */
         .rating-box {
             background-color: #f6fff6;
             border: 2px solid #008a00;
@@ -205,7 +188,6 @@
             margin-top: 2px;
         }
 
-        /* Data Table */
         .data-table {
             width: 100%;
             border-collapse: collapse;
@@ -230,7 +212,6 @@
             font-weight: 400;
         }
 
-        /* Financial Table */
         .fin-table {
             width: 100%;
             border-collapse: collapse;
@@ -258,7 +239,6 @@
             font-weight: 700;
         }
 
-        /* Analyst Info */
         .analyst-info {
             margin-top: 30px;
             border-top: 1px solid #eeeeee;
@@ -283,7 +263,6 @@
             margin: 0;
         }
 
-        /* Footer */
         .footer {
             margin-top: 40px;
             padding-top: 15px;
@@ -294,13 +273,11 @@
             clear: both;
         }
 
-        /* Print Specifics */
         @media print {
-            body {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+            body { 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
             }
-
             .container {
                 width: 100%;
                 max-width: 100%;
@@ -308,144 +285,142 @@
                 margin: 0;
                 border: none;
             }
-
             .rating-box {
                 page-break-inside: avoid;
             }
         }
     </style>
 </head>
-
 <body>
 
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <div class="logo-area">
-                <h1>Sage<span>Alpha</span> Capital</h1>
-                <span class="logo-sub">Institutional Equity Research</span>
-            </div>
-            <div class="tagline">
-                Research powered by SageAlpha.ai<br>
-                {{ date }}
-            </div>
+<div class="container">
+    <div class="header">
+        <div class="logo-area">
+            <h1>Sage<span>Alpha</span> Capital</h1>
+            <span class="logo-sub">Institutional Equity Research</span>
         </div>
-
-        <!-- Meta Bar -->
-        <div class="meta-bar">
-            <div class="meta-left">Sector: {{ sector|default('Technology') }}</div>
-            <div class="meta-right">Update Note</div>
-        </div>
-
-        <!-- Main Content -->
-        <div class="main-content">
-
-            <!-- Left Column -->
-            <div class="content-col">
-                <h3>{{ company }} <span class="ticker">({{ ticker }})</span></h3>
-                <p style="font-style: italic; color: #555555; margin-top: 0; margin-bottom: 20px;">
-                    {{ headline_thesis|default('Investment Thesis Summary') }}
-                </p>
-
-                <h2>Investment Thesis</h2>
-                <ul>
-                    {{ thesis_points|default('<li>Investment thesis content will be generated based on company analysis.</li>')|safe }}
-                </ul>
-
-                <h2>Key Highlights</h2>
-                <ul>
-                    {{ highlight_points|default('<li>Key highlights will be generated based on recent company developments.</li>')|safe }}
-                </ul>
-
-                <h2>Valuation & Methodology</h2>
-                <p>{{ valuation_text|default('Valuation analysis will be provided based on company fundamentals and market conditions.') }}</p>
-
-                <h2>Catalysts (Next 12 Months)</h2>
-                <ul>
-                    {{ catalyst_points|default('<li>Potential catalysts will be identified based on company outlook.</li>')|safe }}
-                </ul>
-
-                <h2>Risks</h2>
-                <ul>
-                    {{ risk_points|default('<li>Risks will be assessed based on industry and company-specific factors.</li>')|safe }}
-                </ul>
-            </div>
-
-            <!-- Right Column (Sidebar) -->
-            <div class="sidebar-col">
-                <div class="rating-box">
-                    <span class="rating-text">{{ rating|default('BUY') }}</span>
-                    <span class="target-price">{{ target_price|default('$100.00') }}</span>
-                    <span class="target-label">Price Target (12m)</span>
-                </div>
-
-                <table class="data-table">
-                    <tr>
-                        <td class="label">Current Price</td>
-                        <td class="val">{{ current_price|default('$85.00') }}</td>
-                    </tr>
-                    <tr>
-                        <td class="label">Upside</td>
-                        <td class="val" style="color: #008a00; font-weight: 700;">{{ upside|default('+18%') }}</td>
-                    </tr>
-                    <tr>
-                        <td class="label">Market Cap</td>
-                        <td class="val">{{ market_cap|default('$50.0 bn') }}</td>
-                    </tr>
-                    <tr>
-                        <td class="label">Ent. Value</td>
-                        <td class="val">{{ ev|default('$55.0 bn') }}</td>
-                    </tr>
-                    <tr>
-                        <td class="label">Valuation</td>
-                        <td class="val">{{ multiple_label|default('P/E') }}: {{ multiple_val|default('18.5x') }}</td>
-                    </tr>
-                </table>
-
-                <h2>Financial Summary</h2>
-                <p style="font-size: 11px; color: #666666; margin-bottom: 5px;">(Estimates)</p>
-                <table class="fin-table">
-                    <tr>
-                        <th>Year</th>
-                        <th>2024E</th>
-                        <th>2025E</th>
-                        <th>2026E</th>
-                    </tr>
-                    <tr>
-                        <td>Rev</td>
-                        <td>{{ rev_24|default('100.0') }}</td>
-                        <td>{{ rev_25|default('110.0') }}</td>
-                        <td>{{ rev_26|default('125.0') }}</td>
-                    </tr>
-                    <tr>
-                        <td>EBITDA</td>
-                        <td>{{ ebitda_24|default('25.0') }}</td>
-                        <td>{{ ebitda_25|default('28.0') }}</td>
-                        <td>{{ ebitda_26|default('32.0') }}</td>
-                    </tr>
-                    <tr>
-                        <td>EPS</td>
-                        <td>{{ eps_24|default('4.50') }}</td>
-                        <td>{{ eps_25|default('5.10') }}</td>
-                        <td>{{ eps_26|default('5.80') }}</td>
-                    </tr>
-                </table>
-
-                <div class="analyst-info">
-                    <span class="analyst-label">Analyst</span>
-                    <p class="analyst-name">SageAlpha Research Team</p>
-                    <p class="analyst-email">research@sagealpha.ai</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="footer">
-            © 2025 SageAlpha Capital. All rights reserved. This report is for informational purposes only and does not
-            constitute financial advice. Powered by SageAlpha.ai.
+        <div class="tagline">
+            Research powered by SageAlpha.ai<br>
+            April 27, 2025
         </div>
     </div>
 
-</body>
+    <div class="meta-bar">
+        <div class="meta-left">Sector: Consumer Staples (Beverages)</div>
+        <div class="meta-right">Update Note</div>
+    </div>
 
+    <div class="main-content">
+        <div class="content-col">
+            <h3>Bisleri <span class="ticker">(Private)</span></h3>
+            <p style="font-style: italic; color: #555555; margin-top: 0; margin-bottom: 20px;">
+                Dominant bottled water brand with strong distribution and margin expansion potential amid rising health-conscious consumption trends.
+            </p>
+
+            <h2>Investment Thesis</h2>
+            <ul>
+                <li>Bisleri commands over 30% market share in India’s organized bottled water segment, supported by unmatched brand recall and extensive distribution network spanning over 135,000 outlets.</li>
+                <li>Structural tailwinds from rising urbanization, premiumization of hydration products, and increasing awareness of water safety underpin sustained volume growth.</li>
+                <li>Operating leverage and backward integration in manufacturing are expected to drive EBITDA margin expansion from ~18% to ~22% by FY26.</li>
+            </ul>
+
+            <h2>Key Highlights</h2>
+            <ul>
+                <li>Bisleri’s diversification into flavored and functional water categories positions it to capture incremental share in the fast-growing health beverage segment.</li>
+                <li>Strong brand equity and distribution moat provide resilience against new entrants and pricing pressure from local brands.</li>
+                <li>Ongoing capacity expansion and automation initiatives expected to improve cost efficiency and scalability.</li>
+            </ul>
+
+            <h2>Valuation & Methodology</h2>
+            <p>We value Bisleri using a blended approach of EV/EBITDA and DCF, reflecting its strong cash generation and brand-led growth profile. Applying a 17x FY25E EV/EBITDA multiple (in line with global bottled water peers such as Nestlé Waters and Danone), we derive an implied enterprise value of approximately INR 9,000 crore.</p>
+            <p>Our DCF cross-check, assuming mid-teens revenue growth and a terminal growth of 4%, supports a fair equity value of INR 8,500–9,200 crore. Given the company’s private status, valuation sensitivity remains high to input assumptions, but relative metrics suggest upside potential if Bisleri pursues public listing or strategic stake sale.</p>
+
+            <h2>Catalysts (Next 12 Months)</h2>
+            <ul>
+                <li>Potential IPO or strategic stake sale to a global beverage major could unlock valuation premium.</li>
+                <li>Launch of new premium hydration products and expansion into Tier-2 and Tier-3 cities.</li>
+                <li>Operational efficiencies from new bottling plants and logistics optimization.</li>
+            </ul>
+
+            <h2>Risks</h2>
+            <ul>
+                <li>Rising input costs (PET resin, transportation) could pressure margins if not offset by pricing actions.</li>
+                <li>Regulatory changes in plastic usage and packaging norms may increase compliance costs.</li>
+                <li>Intensifying competition from multinational and regional players in the packaged water segment.</li>
+            </ul>
+        </div>
+
+        <div class="sidebar-col">
+            <div class="rating-box">
+                <span class="rating-text">BUY</span>
+                <span class="target-price">₹1,200</span>
+                <span class="target-label">Price Target (12m)</span>
+            </div>
+
+            <table class="data-table">
+                <tr>
+                    <td class="label">Current Price</td>
+                    <td class="val">₹950</td>
+                </tr>
+                <tr>
+                    <td class="label">Upside</td>
+                    <td class="val" style="color: #008a00; font-weight: 700;">+26%</td>
+                </tr>
+                <tr>
+                    <td class="label">Market Cap</td>
+                    <td class="val">₹8,000 Cr</td>
+                </tr>
+                <tr>
+                    <td class="label">Ent. Value</td>
+                    <td class="val">₹9,000 Cr</td>
+                </tr>
+                <tr>
+                    <td class="label">Valuation</td>
+                    <td class="val">EV/EBITDA: 17x</td>
+                </tr>
+            </table>
+
+            <h2>Financial Summary</h2>
+            <p style="font-size: 11px; color: #666666; margin-bottom: 5px;">(Estimates)</p>
+            <table class="fin-table">
+                <tr>
+                    <th>Year</th>
+                    <th>2024E</th>
+                    <th>2025E</th>
+                    <th>2026E</th>
+                </tr>
+                <tr>
+                    <td>Rev</td>
+                    <td>₹2,400 Cr</td>
+                    <td>₹2,750 Cr</td>
+                    <td>₹3,150 Cr</td>
+                </tr>
+                <tr>
+                    <td>EBITDA</td>
+                    <td>₹430 Cr</td>
+                    <td>₹495 Cr</td>
+                    <td>₹575 Cr</td>
+                </tr>
+                <tr>
+                    <td>EPS</td>
+                    <td>₹18.5</td>
+                    <td>₹21.0</td>
+                    <td>₹25.0</td>
+                </tr>
+            </table>
+
+            <div class="analyst-info">
+                <span class="analyst-label">Analyst</span>
+                <p class="analyst-name">SageAlpha Research Team</p>
+                <p class="analyst-email">research@sagealpha.ai</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        © 2025 SageAlpha Capital. All rights reserved. This report is for informational purposes only and does not constitute financial advice. Powered by SageAlpha.ai.
+    </div>
+</div>
+
+</body>
 </html>

@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>SageAlpha Capital | Equity Research | {{ company }}</title>
+    <title>SageAlpha Capital | Equity Research | {{ company_name }}</title>
     <style>
         /* Reset & Base */
         body {
@@ -17,7 +17,6 @@
             print-color-adjust: exact;
         }
 
-        /* A4 Container - Max 850px for safe printing */
         .container {
             width: 100%;
             max-width: 850px;
@@ -26,10 +25,8 @@
             background-color: #ffffff;
             box-sizing: border-box;
             border-top: 8px solid #083154;
-            /* Primary Color */
         }
 
-        /* Header */
         .header {
             width: 100%;
             border-bottom: 1px solid #eeeeee;
@@ -37,7 +34,6 @@
             margin-bottom: 30px;
         }
 
-        /* Clearfix for floated header elements */
         .header::after {
             content: "";
             display: table;
@@ -59,7 +55,6 @@
 
         .logo-area span {
             color: #2e8b57;
-            /* Accent Color */
             font-weight: 700;
         }
 
@@ -82,7 +77,6 @@
             padding-top: 5px;
         }
 
-        /* Meta Bar */
         .meta-bar {
             background-color: #083154;
             color: #ffffff;
@@ -90,7 +84,6 @@
             font-size: 13px;
             margin-bottom: 30px;
             overflow: hidden;
-            /* Clear floats if any */
         }
 
         .meta-left {
@@ -103,17 +96,14 @@
             font-weight: 600;
         }
 
-        /* Main Content Layout - Float Based for PDF Compatibility */
         .main-content {
             width: 100%;
             overflow: hidden;
-            /* Clearfix */
         }
 
         .content-col {
             float: left;
             width: 64%;
-            /* ~2/3 width */
             padding-right: 3%;
             box-sizing: border-box;
         }
@@ -121,13 +111,11 @@
         .sidebar-col {
             float: right;
             width: 33%;
-            /* ~1/3 width */
             padding-left: 15px;
             border-left: 1px solid #f0f0f0;
             box-sizing: border-box;
         }
 
-        /* Typography & Elements */
         h2 {
             color: #083154;
             border-bottom: 1px solid #eeeeee;
@@ -171,7 +159,6 @@
             text-align: justify;
         }
 
-        /* Sidebar Components */
         .rating-box {
             background-color: #f6fff6;
             border: 2px solid #008a00;
@@ -205,7 +192,6 @@
             margin-top: 2px;
         }
 
-        /* Data Table */
         .data-table {
             width: 100%;
             border-collapse: collapse;
@@ -230,7 +216,6 @@
             font-weight: 400;
         }
 
-        /* Financial Table */
         .fin-table {
             width: 100%;
             border-collapse: collapse;
@@ -258,7 +243,6 @@
             font-weight: 700;
         }
 
-        /* Analyst Info */
         .analyst-info {
             margin-top: 30px;
             border-top: 1px solid #eeeeee;
@@ -283,7 +267,6 @@
             margin: 0;
         }
 
-        /* Footer */
         .footer {
             margin-top: 40px;
             padding-top: 15px;
@@ -294,7 +277,6 @@
             clear: both;
         }
 
-        /* Print Specifics */
         @media print {
             body {
                 -webkit-print-color-adjust: exact;
@@ -319,7 +301,6 @@
 <body>
 
     <div class="container">
-        <!-- Header -->
         <div class="header">
             <div class="logo-area">
                 <h1>Sage<span>Alpha</span> Capital</h1>
@@ -327,78 +308,97 @@
             </div>
             <div class="tagline">
                 Research powered by SageAlpha.ai<br>
-                {{ date }}
+                {{ report_date }}
             </div>
         </div>
 
-        <!-- Meta Bar -->
         <div class="meta-bar">
-            <div class="meta-left">Sector: {{ sector|default('Technology') }}</div>
-            <div class="meta-right">Update Note</div>
+            <div class="meta-left">Sector: {{ sector | default('General') }}</div>
+            <div class="meta-right">{{ report_type | default('Research Note') }}</div>
         </div>
 
-        <!-- Main Content -->
         <div class="main-content">
-
-            <!-- Left Column -->
             <div class="content-col">
-                <h3>{{ company }} <span class="ticker">({{ ticker }})</span></h3>
+                <h3>{{ company_name }} {% if ticker %}<span class="ticker">({{ ticker }})</span>{% endif %}</h3>
                 <p style="font-style: italic; color: #555555; margin-top: 0; margin-bottom: 20px;">
-                    {{ headline_thesis|default('Investment Thesis Summary') }}
+                    {{ summary | default('AI-generated equity research report for ' + company_name + '.') }}
                 </p>
 
                 <h2>Investment Thesis</h2>
+                {% if investment_thesis %}
                 <ul>
-                    {{ thesis_points|default('<li>Investment thesis content will be generated based on company analysis.</li>')|safe }}
+                    {% for point in investment_thesis %}
+                    <li>{{ point }}</li>
+                    {% endfor %}
                 </ul>
+                {% else %}
+                <p>{{ investment_thesis_text | default('Investment thesis analysis pending.') }}</p>
+                {% endif %}
 
                 <h2>Key Highlights</h2>
+                {% if key_highlights %}
                 <ul>
-                    {{ highlight_points|default('<li>Key highlights will be generated based on recent company developments.</li>')|safe }}
+                    {% for point in key_highlights %}
+                    <li>{{ point }}</li>
+                    {% endfor %}
                 </ul>
+                {% else %}
+                <p>{{ key_highlights_text | default('Key highlights analysis pending.') }}</p>
+                {% endif %}
 
                 <h2>Valuation & Methodology</h2>
-                <p>{{ valuation_text|default('Valuation analysis will be provided based on company fundamentals and market conditions.') }}</p>
+                <p>{{ valuation_text | default('Valuation analysis pending. Please consult with a financial advisor for detailed valuation metrics.') }}</p>
 
                 <h2>Catalysts (Next 12 Months)</h2>
+                {% if catalysts %}
                 <ul>
-                    {{ catalyst_points|default('<li>Potential catalysts will be identified based on company outlook.</li>')|safe }}
+                    {% for point in catalysts %}
+                    <li>{{ point }}</li>
+                    {% endfor %}
                 </ul>
+                {% else %}
+                <p>{{ catalysts_text | default('Catalyst analysis pending.') }}</p>
+                {% endif %}
 
                 <h2>Risks</h2>
+                {% if risks %}
                 <ul>
-                    {{ risk_points|default('<li>Risks will be assessed based on industry and company-specific factors.</li>')|safe }}
+                    {% for point in risks %}
+                    <li>{{ point }}</li>
+                    {% endfor %}
                 </ul>
+                {% else %}
+                <p>{{ risks_text | default('Risk analysis pending. All investments carry inherent risks.') }}</p>
+                {% endif %}
             </div>
 
-            <!-- Right Column (Sidebar) -->
             <div class="sidebar-col">
                 <div class="rating-box">
-                    <span class="rating-text">{{ rating|default('BUY') }}</span>
-                    <span class="target-price">{{ target_price|default('$100.00') }}</span>
+                    <span class="rating-text">{{ rating | default('NEUTRAL') }}</span>
+                    <span class="target-price">{{ target_price | default('N/A') }}</span>
                     <span class="target-label">Price Target (12m)</span>
                 </div>
 
                 <table class="data-table">
                     <tr>
                         <td class="label">Current Price</td>
-                        <td class="val">{{ current_price|default('$85.00') }}</td>
+                        <td class="val">{{ current_price | default('N/A') }}</td>
                     </tr>
                     <tr>
                         <td class="label">Upside</td>
-                        <td class="val" style="color: #008a00; font-weight: 700;">{{ upside|default('+18%') }}</td>
+                        <td class="val" style="color: #008a00; font-weight: 700;">{{ upside | default('N/A') }}</td>
                     </tr>
                     <tr>
                         <td class="label">Market Cap</td>
-                        <td class="val">{{ market_cap|default('$50.0 bn') }}</td>
+                        <td class="val">{{ market_cap | default('N/A') }}</td>
                     </tr>
                     <tr>
                         <td class="label">Ent. Value</td>
-                        <td class="val">{{ ev|default('$55.0 bn') }}</td>
+                        <td class="val">{{ enterprise_value | default('N/A') }}</td>
                     </tr>
                     <tr>
                         <td class="label">Valuation</td>
-                        <td class="val">{{ multiple_label|default('P/E') }}: {{ multiple_val|default('18.5x') }}</td>
+                        <td class="val">{{ valuation_metric | default('N/A') }}</td>
                     </tr>
                 </table>
 
@@ -407,27 +407,27 @@
                 <table class="fin-table">
                     <tr>
                         <th>Year</th>
-                        <th>2024E</th>
-                        <th>2025E</th>
-                        <th>2026E</th>
+                        <th>{{ year1 | default('FY24E') }}</th>
+                        <th>{{ year2 | default('FY25E') }}</th>
+                        <th>{{ year3 | default('FY26E') }}</th>
                     </tr>
                     <tr>
                         <td>Rev</td>
-                        <td>{{ rev_24|default('100.0') }}</td>
-                        <td>{{ rev_25|default('110.0') }}</td>
-                        <td>{{ rev_26|default('125.0') }}</td>
+                        <td>{{ rev1 | default('N/A') }}</td>
+                        <td>{{ rev2 | default('N/A') }}</td>
+                        <td>{{ rev3 | default('N/A') }}</td>
                     </tr>
                     <tr>
                         <td>EBITDA</td>
-                        <td>{{ ebitda_24|default('25.0') }}</td>
-                        <td>{{ ebitda_25|default('28.0') }}</td>
-                        <td>{{ ebitda_26|default('32.0') }}</td>
+                        <td>{{ ebitda1 | default('N/A') }}</td>
+                        <td>{{ ebitda2 | default('N/A') }}</td>
+                        <td>{{ ebitda3 | default('N/A') }}</td>
                     </tr>
                     <tr>
                         <td>EPS</td>
-                        <td>{{ eps_24|default('4.50') }}</td>
-                        <td>{{ eps_25|default('5.10') }}</td>
-                        <td>{{ eps_26|default('5.80') }}</td>
+                        <td>{{ eps1 | default('N/A') }}</td>
+                        <td>{{ eps2 | default('N/A') }}</td>
+                        <td>{{ eps3 | default('N/A') }}</td>
                     </tr>
                 </table>
 
@@ -439,9 +439,8 @@
             </div>
         </div>
 
-        <!-- Footer -->
         <div class="footer">
-            © 2025 SageAlpha Capital. All rights reserved. This report is for informational purposes only and does not
+            © {{ current_year | default('2025') }} SageAlpha Capital. All rights reserved. This report is for informational purposes only and does not
             constitute financial advice. Powered by SageAlpha.ai.
         </div>
     </div>
@@ -449,3 +448,4 @@
 </body>
 
 </html>
+

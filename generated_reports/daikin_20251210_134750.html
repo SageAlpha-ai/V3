@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SageAlpha Capital | Equity Research | Daikin Industries Ltd.</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #222222;
+            line-height: 1.5;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .container {
+            width: 100%;
+            max-width: 850px;
+            margin: 0 auto;
+            padding: 40px;
+            background-color: #ffffff;
+            box-sizing: border-box;
+            border-top: 8px solid #083154;
+        }
+        .header {
+            width: 100%;
+            border-bottom: 1px solid #eeeeee;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header::after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+        .logo-area {
+            float: left;
+            width: 60%;
+        }
+        .logo-area h1 {
+            margin: 0;
+            font-size: 26px;
+            font-family: Georgia, 'Times New Roman', Times, serif;
+            color: #083154;
+            letter-spacing: -0.5px;
+        }
+        .logo-area span {
+            color: #2e8b57;
+            font-weight: 700;
+        }
+        .logo-sub {
+            display: block;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            color: #666666;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+        .tagline {
+            float: right;
+            width: 35%;
+            text-align: right;
+            font-size: 11px;
+            color: #6b6b6b;
+            line-height: 1.2;
+            padding-top: 5px;
+        }
+        .meta-bar {
+            background-color: #083154;
+            color: #ffffff;
+            padding: 10px 20px;
+            font-size: 13px;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+        .meta-left {
+            float: left;
+            font-weight: 600;
+        }
+        .meta-right {
+            float: right;
+            font-weight: 600;
+        }
+        .main-content {
+            width: 100%;
+            overflow: hidden;
+        }
+        .content-col {
+            float: left;
+            width: 64%;
+            padding-right: 3%;
+            box-sizing: border-box;
+        }
+        .sidebar-col {
+            float: right;
+            width: 33%;
+            padding-left: 15px;
+            border-left: 1px solid #f0f0f0;
+            box-sizing: border-box;
+        }
+        h2 {
+            color: #083154;
+            border-bottom: 1px solid #eeeeee;
+            padding-bottom: 6px;
+            margin: 20px 0 12px 0;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 700;
+            clear: both;
+        }
+        h3 {
+            margin: 0 0 5px 0;
+            font-size: 22px;
+            font-weight: 700;
+            color: #081b2b;
+        }
+        .ticker {
+            font-weight: 400;
+            color: #666666;
+        }
+        p {
+            font-size: 13px;
+            margin-bottom: 12px;
+            text-align: justify;
+            color: #222222;
+        }
+        ul {
+            padding-left: 18px;
+            margin-bottom: 15px;
+        }
+        li {
+            font-size: 13px;
+            margin-bottom: 8px;
+            color: #222222;
+            text-align: justify;
+        }
+        .rating-box {
+            background-color: #f6fff6;
+            border: 2px solid #008a00;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .rating-text {
+            display: block;
+            color: #008a00;
+            font-weight: 800;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        .target-price {
+            display: block;
+            font-size: 28px;
+            font-weight: 800;
+            color: #111111;
+        }
+        .target-label {
+            display: block;
+            font-size: 10px;
+            color: #666666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-bottom: 25px;
+        }
+        .data-table td {
+            padding: 6px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .data-table .label {
+            color: #666666;
+            font-weight: 600;
+            text-align: left;
+        }
+        .data-table .val {
+            text-align: right;
+            color: #000000;
+            font-weight: 400;
+        }
+        .fin-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-top: 10px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .fin-table th {
+            text-align: right;
+            padding: 6px 4px;
+            border-bottom: 2px solid #083154;
+            color: #083154;
+            font-weight: 700;
+        }
+        .fin-table td {
+            text-align: right;
+            padding: 6px 4px;
+            border-bottom: 1px solid #f2f2f2;
+        }
+        .fin-table td:first-child {
+            text-align: left;
+            font-weight: 700;
+        }
+        .analyst-info {
+            margin-top: 30px;
+            border-top: 1px solid #eeeeee;
+            padding-top: 15px;
+        }
+        .analyst-label {
+            font-weight: 700;
+            font-size: 12px;
+            margin-bottom: 2px;
+            display: block;
+        }
+        .analyst-name {
+            font-size: 12px;
+            margin: 0;
+        }
+        .analyst-email {
+            font-size: 11px;
+            color: #666666;
+            margin: 0;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 1px solid #eeeeee;
+            text-align: center;
+            font-size: 10px;
+            color: #888888;
+            clear: both;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div class="logo-area">
+            <h1>Sage<span>Alpha</span> Capital</h1>
+            <span class="logo-sub">Institutional Equity Research</span>
+        </div>
+        <div class="tagline">
+            Research powered by SageAlpha.ai<br>
+            March 4, 2025
+        </div>
+    </div>
+
+    <div class="meta-bar">
+        <div class="meta-left">Sector: Industrials</div>
+        <div class="meta-right">Update Note</div>
+    </div>
+
+    <div class="main-content">
+        <div class="content-col">
+            <h3>Daikin Industries Ltd. <span class="ticker">(6367 JP)</span></h3>
+            <p style="font-style: italic; color: #555555; margin-top: 0; margin-bottom: 20px;">
+                Daikin remains the global leader in HVAC systems, positioned to benefit from structural demand for energy-efficient cooling and heat pump solutions.
+            </p>
+
+            <h2>Investment Thesis</h2>
+            <ul>
+                <li>Daikin is the world’s largest manufacturer of air conditioning systems, supported by strong brand equity, proprietary inverter technology, and global distribution scale.</li>
+                <li>Structural tailwinds from decarbonization and electrification are driving demand for heat pumps, where Daikin holds a leading market position in Europe and Japan.</li>
+                <li>Margin expansion is expected through product mix improvement, localized production in emerging markets, and digital service monetization.</li>
+            </ul>
+
+            <h2>Key Highlights</h2>
+            <ul>
+                <li>FY2024 revenue growth of ~6% YoY driven by resilient residential and commercial HVAC demand despite macro softness in China.</li>
+                <li>Operating margin recovery supported by easing raw material costs and improved pricing discipline.</li>
+                <li>Continued investment in R&D and sustainability initiatives, including refrigerant transition and smart HVAC systems.</li>
+            </ul>
+
+            <h2>Valuation & Methodology</h2>
+            <p>We value Daikin using a blended approach of forward P/E and EV/EBITDA multiples relative to global peers such as Carrier, Trane Technologies, and Mitsubishi Electric. Our 12-month target price of ¥26,500 implies a 22x FY2025E P/E multiple, slightly above the peer median, justified by Daikin’s superior ROIC, technology leadership, and exposure to long-term energy transition themes.</p>
+            <p>DCF valuation supports similar upside, assuming mid-single-digit revenue CAGR, stable EBITDA margins near 15%, and a WACC of 7.5%. The stock trades at ~19x FY2025E earnings, offering a favorable risk/reward profile given secular growth visibility.</p>
+
+            <h2>Catalysts (Next 12 Months)</h2>
+            <ul>
+                <li>Acceleration of heat pump adoption in Europe under EU decarbonization policy support.</li>
+                <li>Launch of next-generation refrigerant and smart HVAC systems improving energy efficiency.</li>
+                <li>Potential margin uplift from cost optimization and supply chain localization in Southeast Asia.</li>
+            </ul>
+
+            <h2>Risks</h2>
+            <ul>
+                <li>Exposure to cyclical demand in construction and real estate sectors, particularly in China and North America.</li>
+                <li>Foreign exchange volatility affecting profitability given Daikin’s global operations.</li>
+                <li>Competitive pressure from regional players and potential regulatory shifts in refrigerant standards.</li>
+            </ul>
+        </div>
+
+        <div class="sidebar-col">
+            <div class="rating-box">
+                <span class="rating-text">BUY</span>
+                <span class="target-price">¥26,500</span>
+                <span class="target-label">Price Target (12m)</span>
+            </div>
+
+            <table class="data-table">
+                <tr>
+                    <td class="label">Current Price</td>
+                    <td class="val">¥22,000</td>
+                </tr>
+                <tr>
+                    <td class="label">Upside</td>
+                    <td class="val" style="color: #008a00; font-weight: 700;">+20%</td>
+                </tr>
+                <tr>
+                    <td class="label">Market Cap</td>
+                    <td class="val">¥6.8T</td>
+                </tr>
+                <tr>
+                    <td class="label">Ent. Value</td>
+                    <td class="val">¥7.1T</td>
+                </tr>
+                <tr>
+                    <td class="label">Valuation</td>
+                    <td class="val">P/E: 19x FY2025E</td>
+                </tr>
+            </table>
+
+            <h2>Financial Summary</h2>
+            <p style="font-size: 11px; color: #666666; margin-bottom: 5px;">(Estimates)</p>
+            <table class="fin-table">
+                <tr>
+                    <th>Year</th>
+                    <th>2024E</th>
+                    <th>2025E</th>
+                    <th>2026E</th>
+                </tr>
+                <tr>
+                    <td>Rev</td>
+                    <td>¥3.6T</td>
+                    <td>¥3.8T</td>
+                    <td>¥4.0T</td>
+                </tr>
+                <tr>
+                    <td>EBITDA</td>
+                    <td>¥540B</td>
+                    <td>¥580B</td>
+                    <td>¥620B</td>
+                </tr>
+                <tr>
+                    <td>EPS</td>
+                    <td>¥1,150</td>
+                    <td>¥1,250</td>
+                    <td>¥1,350</td>
+                </tr>
+            </table>
+
+            <div class="analyst-info">
+                <span class="analyst-label">Analyst</span>
+                <p class="analyst-name">SageAlpha Research Team</p>
+                <p class="analyst-email">research@sagealpha.ai</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        © 2025 SageAlpha Capital. All rights reserved. This report is for informational purposes only and does not constitute financial advice. Powered by SageAlpha.ai.
+    </div>
+</div>
+
+</body>
+</html>

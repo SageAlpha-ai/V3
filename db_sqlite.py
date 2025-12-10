@@ -172,6 +172,34 @@ def create_tables():
         # Enable foreign keys
         cur.execute("PRAGMA foreign_keys = ON;")
         
+        # Check and migrate portfolio_items table for item_date column
+        try:
+            cur.execute("SELECT item_date FROM portfolio_items LIMIT 1")
+        except sqlite3.OperationalError:
+            # Column doesn't exist, add it (SQLite doesn't support CURRENT_DATE in ALTER TABLE, so add without default)
+            try:
+                cur.execute("ALTER TABLE portfolio_items ADD COLUMN item_date DATE")
+                # Update existing rows to use today's date
+                cur.execute("UPDATE portfolio_items SET item_date = DATE('now') WHERE item_date IS NULL")
+                conn.commit()
+                print("[DB] Added item_date column to portfolio_items")
+            except sqlite3.OperationalError as e:
+                print(f"[DB] Could not add item_date column: {e}")
+        
+        # Check and migrate reports table for report_date column
+        try:
+            cur.execute("SELECT report_date FROM reports LIMIT 1")
+        except sqlite3.OperationalError:
+            # Column doesn't exist, add it (SQLite doesn't support CURRENT_DATE in ALTER TABLE, so add without default)
+            try:
+                cur.execute("ALTER TABLE reports ADD COLUMN report_date DATE")
+                # Update existing rows to use today's date
+                cur.execute("UPDATE reports SET report_date = DATE('now') WHERE report_date IS NULL")
+                conn.commit()
+                print("[DB] Added report_date column to reports")
+            except sqlite3.OperationalError as e:
+                print(f"[DB] Could not add report_date column: {e}")
+        
         # Users table
         cur.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -233,6 +261,84 @@ def create_tables():
             )
         """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_documents_doc_id ON documents(doc_id)")
+        
+        # Portfolio items table - tracks companies/tickers researched by users
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS portfolio_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER REFERENCES users(id),
+                company_name VARCHAR(255) NOT NULL,
+                ticker VARCHAR(20),
+                source_type VARCHAR(50) DEFAULT 'chat',
+                item_date DATE DEFAULT CURRENT_DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_portfolio_user ON portfolio_items(user_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_portfolio_ticker ON portfolio_items(ticker)")
+        # Create date index (column should exist after migration above)
+        try:
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_portfolio_date ON portfolio_items(user_id, item_date)")
+        except sqlite3.OperationalError:
+            pass  # Column doesn't exist (shouldn't happen after migration, but safe)
+        
+        # Reports table - tracks reports for portfolio items
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                portfolio_item_id INTEGER REFERENCES portfolio_items(id),
+                user_id INTEGER REFERENCES users(id),
+                title VARCHAR(255) NOT NULL,
+                status VARCHAR(20) DEFAULT 'pending',
+                report_data TEXT,
+                report_path VARCHAR(512),
+                report_date DATE DEFAULT CURRENT_DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                approved_at TIMESTAMP
+            )
+        """)
+        
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_reports_portfolio ON reports(portfolio_item_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_reports_user ON reports(user_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status)")
+        # Create date index (column should exist after migration above)
+        try:
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_reports_date ON reports(user_id, report_date)")
+        except sqlite3.OperationalError:
+            pass  # Column doesn't exist (shouldn't happen after migration, but safe)
+        
+        # Subscribers table - tracks subscribers for report distribution
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS subscribers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER REFERENCES users(id),
+                name VARCHAR(255) NOT NULL,
+                mobile VARCHAR(50),
+                email VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_active BOOLEAN DEFAULT 1
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_subscribers_user ON subscribers(user_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_subscribers_email ON subscribers(email)")
+        
+        # User preferences table - stores user profile settings
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_preferences (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER REFERENCES users(id) UNIQUE NOT NULL,
+                communication_style TEXT,
+                language VARCHAR(50) DEFAULT 'en',
+                plan VARCHAR(20) DEFAULT 'free',
+                preferred_model VARCHAR(50),
+                preference_mode VARCHAR(20) DEFAULT 'accuracy',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_preferences_user ON user_preferences(user_id)")
         
         conn.commit()
         cur.close()
@@ -519,4 +625,132 @@ if __name__ == "__main__":
             print(f"  Found: {user}")
             print(f"  Password check (correct): {user.check_password('Demouser')}")
             print(f"  Password check (wrong): {user.check_password('wrongpass')}")
+
+
+# ==================== User Preferences Functions ====================
+
+def get_user_preferences(user_id: int) -> dict:
+    """Get user preferences, creating default if not exists."""
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT * FROM user_preferences WHERE user_id = ?",
+            (user_id,)
+        )
+        row = cur.fetchone()
+        if row:
+            # Migrate old model selections to new SageAlpha models
+            prefs = dict(row)
+            old_models = ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo", "claude-3", "gemini-pro", "llama-2"]
+            if prefs.get("preferred_model") in old_models:
+                prefs["preferred_model"] = "sagealpha_v3"
+                # Update the database with the new default
+                now = datetime.now(timezone.utc).isoformat()
+                cur.execute(
+                    "UPDATE user_preferences SET preferred_model = ?, updated_at = ? WHERE user_id = ?",
+                    ("sagealpha_v3", now, user_id)
+                )
+                conn.commit()
+            return prefs
+        
+        # Create default preferences
+        now = datetime.now(timezone.utc).isoformat()
+        cur.execute(
+            """INSERT INTO user_preferences 
+               (user_id, communication_style, language, plan, preferred_model, preference_mode, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (user_id, "", "en", "free", "sagealpha_v3", "accuracy", now, now)
+        )
+        conn.commit()
+        
+        # Return the newly created preferences
+        cur.execute(
+            "SELECT * FROM user_preferences WHERE user_id = ?",
+            (user_id,)
+        )
+        row = cur.fetchone()
+        return dict(row) if row else {}
+    finally:
+        conn.close()
+
+
+def update_user_preferences(
+    user_id: int,
+    communication_style: str = None,
+    language: str = None,
+    plan: str = None,
+    preferred_model: str = None,
+    preference_mode: str = None
+) -> bool:
+    """Update user preferences. Returns True if successful."""
+    # Validate preferred_model
+    if preferred_model is not None and preferred_model not in ["sagealpha_v3", "sagealpha_v4"]:
+        preferred_model = "sagealpha_v3"
+
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        
+        # Get current preferences
+        cur.execute(
+            "SELECT * FROM user_preferences WHERE user_id = ?",
+            (user_id,)
+        )
+        row = cur.fetchone()
+        
+        if not row:
+            # Create if doesn't exist
+            now = datetime.now(timezone.utc).isoformat()
+            cur.execute(
+                """INSERT INTO user_preferences 
+                   (user_id, communication_style, language, plan, preferred_model, preference_mode, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    user_id,
+                    communication_style or "",
+                    language or "en",
+                    plan or "free",
+                    preferred_model or "sagealpha_v3",
+                    preference_mode or "accuracy",
+                    now,
+                    now
+                )
+            )
+        else:
+            # Update existing
+            now = datetime.now(timezone.utc).isoformat()
+            updates = []
+            values = []
+            
+            if communication_style is not None:
+                updates.append("communication_style = ?")
+                values.append(communication_style)
+            if language is not None:
+                updates.append("language = ?")
+                values.append(language)
+            if plan is not None:
+                updates.append("plan = ?")
+                values.append(plan)
+            if preferred_model is not None:
+                updates.append("preferred_model = ?")
+                values.append(preferred_model)
+            if preference_mode is not None:
+                updates.append("preference_mode = ?")
+                values.append(preference_mode)
+            
+            if updates:
+                updates.append("updated_at = ?")
+                values.append(now)
+                values.append(user_id)
+                
+                cur.execute(
+                    f"UPDATE user_preferences SET {', '.join(updates)} WHERE user_id = ?",
+                    values
+                )
+        
+        conn.commit()
+        return True
+    finally:
+        conn.close()
 
