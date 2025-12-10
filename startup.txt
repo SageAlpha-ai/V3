@@ -1,2 +1,1 @@
-gunicorn --bind=0.0.0.0 --timeout 600 app:app
-python -m playwright install --with-deps chromium
+gunicorn -k eventlet -w 1 -b 0.0.0.0:$PORT app:app

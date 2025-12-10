@@ -1,11 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
-    <title>SageAlpha Capital | Equity Research | {{ company }}</title>
+    <title>SageAlpha Capital | Equity Research | Amazon</title>
     <style>
-        /* Reset & Base */
         body {
             margin: 0;
             padding: 0;
@@ -16,8 +14,6 @@
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
-
-        /* A4 Container - Max 850px for safe printing */
         .container {
             width: 100%;
             max-width: 850px;
@@ -26,29 +22,22 @@
             background-color: #ffffff;
             box-sizing: border-box;
             border-top: 8px solid #083154;
-            /* Primary Color */
         }
-
-        /* Header */
         .header {
             width: 100%;
             border-bottom: 1px solid #eeeeee;
             padding-bottom: 20px;
             margin-bottom: 30px;
         }
-
-        /* Clearfix for floated header elements */
         .header::after {
             content: "";
             display: table;
             clear: both;
         }
-
         .logo-area {
             float: left;
             width: 60%;
         }
-
         .logo-area h1 {
             margin: 0;
             font-size: 26px;
@@ -56,13 +45,10 @@
             color: #083154;
             letter-spacing: -0.5px;
         }
-
         .logo-area span {
             color: #2e8b57;
-            /* Accent Color */
             font-weight: 700;
         }
-
         .logo-sub {
             display: block;
             font-size: 11px;
@@ -71,7 +57,6 @@
             text-transform: uppercase;
             margin-top: 4px;
         }
-
         .tagline {
             float: right;
             width: 35%;
@@ -81,8 +66,6 @@
             line-height: 1.2;
             padding-top: 5px;
         }
-
-        /* Meta Bar */
         .meta-bar {
             background-color: #083154;
             color: #ffffff;
@@ -90,44 +73,32 @@
             font-size: 13px;
             margin-bottom: 30px;
             overflow: hidden;
-            /* Clear floats if any */
         }
-
         .meta-left {
             float: left;
             font-weight: 600;
         }
-
         .meta-right {
             float: right;
             font-weight: 600;
         }
-
-        /* Main Content Layout - Float Based for PDF Compatibility */
         .main-content {
             width: 100%;
             overflow: hidden;
-            /* Clearfix */
         }
-
         .content-col {
             float: left;
             width: 64%;
-            /* ~2/3 width */
             padding-right: 3%;
             box-sizing: border-box;
         }
-
         .sidebar-col {
             float: right;
             width: 33%;
-            /* ~1/3 width */
             padding-left: 15px;
             border-left: 1px solid #f0f0f0;
             box-sizing: border-box;
         }
-
-        /* Typography & Elements */
         h2 {
             color: #083154;
             border-bottom: 1px solid #eeeeee;
@@ -139,39 +110,32 @@
             font-weight: 700;
             clear: both;
         }
-
         h3 {
             margin: 0 0 5px 0;
             font-size: 22px;
             font-weight: 700;
             color: #081b2b;
         }
-
         .ticker {
             font-weight: 400;
             color: #666666;
         }
-
         p {
             font-size: 13px;
             margin-bottom: 12px;
             text-align: justify;
             color: #222222;
         }
-
         ul {
             padding-left: 18px;
             margin-bottom: 15px;
         }
-
         li {
             font-size: 13px;
             margin-bottom: 8px;
             color: #222222;
             text-align: justify;
         }
-
-        /* Sidebar Components */
         .rating-box {
             background-color: #f6fff6;
             border: 2px solid #008a00;
@@ -180,7 +144,6 @@
             text-align: center;
             margin-bottom: 25px;
         }
-
         .rating-text {
             display: block;
             color: #008a00;
@@ -188,14 +151,12 @@
             font-size: 18px;
             margin-bottom: 5px;
         }
-
         .target-price {
             display: block;
             font-size: 28px;
             font-weight: 800;
             color: #111111;
         }
-
         .target-label {
             display: block;
             font-size: 10px;
@@ -204,33 +165,26 @@
             letter-spacing: 1px;
             margin-top: 2px;
         }
-
-        /* Data Table */
         .data-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 13px;
             margin-bottom: 25px;
         }
-
         .data-table td {
             padding: 6px 0;
             border-bottom: 1px solid #f0f0f0;
         }
-
         .data-table .label {
             color: #666666;
             font-weight: 600;
             text-align: left;
         }
-
         .data-table .val {
             text-align: right;
             color: #000000;
             font-weight: 400;
         }
-
-        /* Financial Table */
         .fin-table {
             width: 100%;
             border-collapse: collapse;
@@ -238,7 +192,6 @@
             margin-top: 10px;
             font-family: 'Courier New', Courier, monospace;
         }
-
         .fin-table th {
             text-align: right;
             padding: 6px 4px;
@@ -246,44 +199,35 @@
             color: #083154;
             font-weight: 700;
         }
-
         .fin-table td {
             text-align: right;
             padding: 6px 4px;
             border-bottom: 1px solid #f2f2f2;
         }
-
         .fin-table td:first-child {
             text-align: left;
             font-weight: 700;
         }
-
-        /* Analyst Info */
         .analyst-info {
             margin-top: 30px;
             border-top: 1px solid #eeeeee;
             padding-top: 15px;
         }
-
         .analyst-label {
             font-weight: 700;
             font-size: 12px;
             margin-bottom: 2px;
             display: block;
         }
-
         .analyst-name {
             font-size: 12px;
             margin: 0;
         }
-
         .analyst-email {
             font-size: 11px;
             color: #666666;
             margin: 0;
         }
-
-        /* Footer */
         .footer {
             margin-top: 40px;
             padding-top: 15px;
@@ -293,14 +237,11 @@
             color: #888888;
             clear: both;
         }
-
-        /* Print Specifics */
         @media print {
-            body {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+            body { 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
             }
-
             .container {
                 width: 100%;
                 max-width: 100%;
@@ -308,144 +249,142 @@
                 margin: 0;
                 border: none;
             }
-
             .rating-box {
                 page-break-inside: avoid;
             }
         }
     </style>
 </head>
-
 <body>
 
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <div class="logo-area">
-                <h1>Sage<span>Alpha</span> Capital</h1>
-                <span class="logo-sub">Institutional Equity Research</span>
-            </div>
-            <div class="tagline">
-                Research powered by SageAlpha.ai<br>
-                {{ date }}
-            </div>
+<div class="container">
+    <div class="header">
+        <div class="logo-area">
+            <h1>Sage<span>Alpha</span> Capital</h1>
+            <span class="logo-sub">Institutional Equity Research</span>
         </div>
-
-        <!-- Meta Bar -->
-        <div class="meta-bar">
-            <div class="meta-left">Sector: {{ sector|default('Technology') }}</div>
-            <div class="meta-right">Update Note</div>
-        </div>
-
-        <!-- Main Content -->
-        <div class="main-content">
-
-            <!-- Left Column -->
-            <div class="content-col">
-                <h3>{{ company }} <span class="ticker">({{ ticker }})</span></h3>
-                <p style="font-style: italic; color: #555555; margin-top: 0; margin-bottom: 20px;">
-                    {{ headline_thesis|default('Investment Thesis Summary') }}
-                </p>
-
-                <h2>Investment Thesis</h2>
-                <ul>
-                    {{ thesis_points|default('<li>Investment thesis content will be generated based on company analysis.</li>')|safe }}
-                </ul>
-
-                <h2>Key Highlights</h2>
-                <ul>
-                    {{ highlight_points|default('<li>Key highlights will be generated based on recent company developments.</li>')|safe }}
-                </ul>
-
-                <h2>Valuation & Methodology</h2>
-                <p>{{ valuation_text|default('Valuation analysis will be provided based on company fundamentals and market conditions.') }}</p>
-
-                <h2>Catalysts (Next 12 Months)</h2>
-                <ul>
-                    {{ catalyst_points|default('<li>Potential catalysts will be identified based on company outlook.</li>')|safe }}
-                </ul>
-
-                <h2>Risks</h2>
-                <ul>
-                    {{ risk_points|default('<li>Risks will be assessed based on industry and company-specific factors.</li>')|safe }}
-                </ul>
-            </div>
-
-            <!-- Right Column (Sidebar) -->
-            <div class="sidebar-col">
-                <div class="rating-box">
-                    <span class="rating-text">{{ rating|default('BUY') }}</span>
-                    <span class="target-price">{{ target_price|default('$100.00') }}</span>
-                    <span class="target-label">Price Target (12m)</span>
-                </div>
-
-                <table class="data-table">
-                    <tr>
-                        <td class="label">Current Price</td>
-                        <td class="val">{{ current_price|default('$85.00') }}</td>
-                    </tr>
-                    <tr>
-                        <td class="label">Upside</td>
-                        <td class="val" style="color: #008a00; font-weight: 700;">{{ upside|default('+18%') }}</td>
-                    </tr>
-                    <tr>
-                        <td class="label">Market Cap</td>
-                        <td class="val">{{ market_cap|default('$50.0 bn') }}</td>
-                    </tr>
-                    <tr>
-                        <td class="label">Ent. Value</td>
-                        <td class="val">{{ ev|default('$55.0 bn') }}</td>
-                    </tr>
-                    <tr>
-                        <td class="label">Valuation</td>
-                        <td class="val">{{ multiple_label|default('P/E') }}: {{ multiple_val|default('18.5x') }}</td>
-                    </tr>
-                </table>
-
-                <h2>Financial Summary</h2>
-                <p style="font-size: 11px; color: #666666; margin-bottom: 5px;">(Estimates)</p>
-                <table class="fin-table">
-                    <tr>
-                        <th>Year</th>
-                        <th>2024E</th>
-                        <th>2025E</th>
-                        <th>2026E</th>
-                    </tr>
-                    <tr>
-                        <td>Rev</td>
-                        <td>{{ rev_24|default('100.0') }}</td>
-                        <td>{{ rev_25|default('110.0') }}</td>
-                        <td>{{ rev_26|default('125.0') }}</td>
-                    </tr>
-                    <tr>
-                        <td>EBITDA</td>
-                        <td>{{ ebitda_24|default('25.0') }}</td>
-                        <td>{{ ebitda_25|default('28.0') }}</td>
-                        <td>{{ ebitda_26|default('32.0') }}</td>
-                    </tr>
-                    <tr>
-                        <td>EPS</td>
-                        <td>{{ eps_24|default('4.50') }}</td>
-                        <td>{{ eps_25|default('5.10') }}</td>
-                        <td>{{ eps_26|default('5.80') }}</td>
-                    </tr>
-                </table>
-
-                <div class="analyst-info">
-                    <span class="analyst-label">Analyst</span>
-                    <p class="analyst-name">SageAlpha Research Team</p>
-                    <p class="analyst-email">research@sagealpha.ai</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="footer">
-            © 2025 SageAlpha Capital. All rights reserved. This report is for informational purposes only and does not
-            constitute financial advice. Powered by SageAlpha.ai.
+        <div class="tagline">
+            Research powered by SageAlpha.ai<br>
+            March 4, 2025
         </div>
     </div>
 
-</body>
+    <div class="meta-bar">
+        <div class="meta-left">Sector: Consumer Discretionary</div>
+        <div class="meta-right">Update Note</div>
+    </div>
 
+    <div class="main-content">
+        <div class="content-col">
+            <h3>Amazon <span class="ticker">(AMZN)</span></h3>
+            <p style="font-style: italic; color: #555555; margin-top: 0; margin-bottom: 20px;">
+                Amazon continues to leverage its scale and AI-driven infrastructure to drive margin expansion across retail, AWS, and advertising.
+            </p>
+
+            <h2>Investment Thesis</h2>
+            <ul>
+                <li>Amazon’s diversified business model—spanning e-commerce, cloud computing, and advertising—positions it as a structural winner in digital consumption and enterprise digitization.</li>
+                <li>Margin expansion is accelerating, driven by AWS growth, advertising monetization, and operational efficiencies in fulfillment and logistics.</li>
+                <li>Strong free cash flow generation and disciplined capital allocation underpin long-term shareholder value creation.</li>
+            </ul>
+
+            <h2>Key Highlights</h2>
+            <ul>
+                <li>AWS revenue growth reaccelerating to mid-teens as enterprise cloud demand stabilizes and generative AI workloads ramp up.</li>
+                <li>Advertising segment surpassing $50B annualized run rate, with higher-margin contribution improving consolidated profitability.</li>
+                <li>North America retail profitability improving through automation, regionalized fulfillment, and Prime membership pricing optimization.</li>
+            </ul>
+
+            <h2>Valuation & Methodology</h2>
+            <p>We value Amazon using a sum-of-the-parts (SOTP) approach, applying distinct multiples to AWS, advertising, and retail operations. AWS is valued at 20x 2025E EBITDA, advertising at 18x, and retail at 10x. This yields an implied equity value of approximately $2.0 trillion, or $225 per share.</p>
+            <p>Relative valuation versus peers (Microsoft, Alphabet) suggests Amazon trades at a discount on forward EV/EBITDA despite superior free cash flow growth. We see upside as the market re-rates AWS and advertising as core profit drivers rather than ancillary segments.</p>
+
+            <h2>Catalysts (Next 12 Months)</h2>
+            <ul>
+                <li>Acceleration in AWS growth from AI-related workloads and new enterprise contracts.</li>
+                <li>Continued advertising monetization across Prime Video and Amazon DSP network.</li>
+                <li>Margin expansion from fulfillment automation and cost optimization initiatives.</li>
+            </ul>
+            
+            <h2>Risks</h2>
+            <ul>
+                <li>Macroeconomic slowdown impacting discretionary consumer spending and e-commerce volumes.</li>
+                <li>Regulatory scrutiny across antitrust, data privacy, and labor practices could constrain flexibility.</li>
+                <li>Competitive pressure from Microsoft Azure and Google Cloud in AI and cloud services.</li>
+            </ul>
+        </div>
+
+        <div class="sidebar-col">
+            <div class="rating-box">
+                <span class="rating-text">BUY</span>
+                <span class="target-price">$225</span>
+                <span class="target-label">Price Target (12m)</span>
+            </div>
+
+            <table class="data-table">
+                <tr>
+                    <td class="label">Current Price</td>
+                    <td class="val">$175</td>
+                </tr>
+                <tr>
+                    <td class="label">Upside</td>
+                    <td class="val" style="color: #008a00; font-weight: 700;">+29%</td>
+                </tr>
+                <tr>
+                    <td class="label">Market Cap</td>
+                    <td class="val">$1.8T</td>
+                </tr>
+                <tr>
+                    <td class="label">Ent. Value</td>
+                    <td class="val">$1.85T</td>
+                </tr>
+                 <tr>
+                    <td class="label">Valuation</td>
+                    <td class="val">EV/EBITDA: 17x</td>
+                </tr>
+            </table>
+
+            <h2>Financial Summary</h2>
+            <p style="font-size: 11px; color: #666666; margin-bottom: 5px;">(Estimates)</p>
+            <table class="fin-table">
+                <tr>
+                    <th>Year</th>
+                    <th>2024E</th>
+                    <th>2025E</th>
+                    <th>2026E</th>
+                </tr>
+                <tr>
+                    <td>Rev</td>
+                    <td>$590B</td>
+                    <td>$640B</td>
+                    <td>$690B</td>
+                </tr>
+                <tr>
+                    <td>EBITDA</td>
+                    <td>$85B</td>
+                    <td>$96B</td>
+                    <td>$108B</td>
+                </tr>
+                <tr>
+                    <td>EPS</td>
+                    <td>$4.00</td>
+                    <td>$5.20</td>
+                    <td>$6.40</td>
+                </tr>
+            </table>
+
+            <div class="analyst-info">
+                <span class="analyst-label">Analyst</span>
+                <p class="analyst-name">SageAlpha Research Team</p>
+                <p class="analyst-email">research@sagealpha.ai</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        © 2025 SageAlpha Capital. All rights reserved. This report is for informational purposes only and does not constitute financial advice. Powered by SageAlpha.ai.
+    </div>
+</div>
+
+</body>
 </html>
