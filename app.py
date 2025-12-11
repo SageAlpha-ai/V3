@@ -4,11 +4,16 @@ Modern Flask 3.x with Blueprints, SocketIO, and async support
 """
 
 import io
+import logging
 import os
 import re
 from datetime import datetime
 from functools import wraps
 from uuid import uuid4
+
+# Configure logger
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -1296,6 +1301,12 @@ def handle_join(data):
 @socketio.on("chat_message")
 def handle_chat_message(data):
     """Handle real-time chat messages via WebSocket with database persistence."""
+    # Initialize pdf_data to prevent NameError
+    pdf_data = None
+    sources = []
+    ai_msg = ""
+    session_id = None
+    
     # Get LLM client (always available due to mock fallback)
     llm = get_llm_client()
     if llm is None:
@@ -1378,9 +1389,20 @@ def handle_chat_message(data):
         ]
 
     except Exception as e:
+        logger.exception("[ws] Error in handle_chat_message: %s", e)
         emit("typing", {"status": False})
-        emit("error", {"message": f"Backend error: {e!s}"})
-        print(f"[ws][ERROR] {e!r}")
+        emit(
+            "chat_response",
+            {
+                "id": str(uuid4()),
+                "response": "Sorry, an error occurred while processing your message. Please try again.",
+                "sources": [],
+                "session_id": session_id,
+                "pdf_data": None,
+                "status": "error",
+                "error": str(e),
+            },
+        )
         return
 
     emit("typing", {"status": False})
@@ -1394,8 +1416,6 @@ def handle_chat_message(data):
             "pdf_data": pdf_data,
         },
     )
-
-    # TODO: Add proper exception handling
 
 
 # ==================== Entry Point ====================
